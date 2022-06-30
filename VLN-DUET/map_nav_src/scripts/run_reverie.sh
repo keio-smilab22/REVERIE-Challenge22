@@ -58,7 +58,9 @@ flag="--root_dir ${DATA_ROOT}
       --feat_dropout 0.4
       --dropout 0.5
       
-      --gamma 0."
+      --gamma 0.
+      
+      --wandb"
 
 # train
 CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \

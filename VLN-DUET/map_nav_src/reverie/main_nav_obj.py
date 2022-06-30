@@ -5,6 +5,7 @@ import numpy as np
 from collections import defaultdict
 
 import torch
+import wandb
 from tensorboardX import SummaryWriter
 
 from utils.misc import set_random_seed
@@ -182,6 +183,15 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
                 record_file
             )
 
+            if args.wandb:
+                wandb.log({"train_critic_loss": critic_loss,
+                        "train_policy_loss": policy_loss,
+                        "train_policy_entropy": entropy,
+                        "train_OG_loss": OG_loss, 
+                        "train_IL_loss": IL_loss,
+                        "train_total_actions": total,
+                        "train_max_length": length})
+
         # Run validation
         loss_str = "iter {}".format(iter)
         for env_name, env in val_envs.items():
@@ -198,6 +208,9 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
                 for metric, val in score_summary.items():
                     loss_str += ', %s: %.2f' % (metric, val)
                     writer.add_scalar('%s/%s' % (metric, env_name), score_summary[metric], idx)
+                    
+                if args.wandb:
+                    wandb.log({f"{env_name}_{k}" : v for k,v in score_summary.items()})
 
                 # select model by spl
                 if env_name in best_val:
@@ -260,6 +273,8 @@ def valid(args, train_env, val_envs, rank=-1):
                 for metric, val in score_summary.items():
                     loss_str += ', %s: %.2f' % (metric, val)
                 write_to_record_file(loss_str+'\n', record_file)
+                if args.wandb:
+                    wandb.log({f"{env_name}_{k}" : v for k,v in score_summary.items()})
 
             if args.submit:
                 json.dump(

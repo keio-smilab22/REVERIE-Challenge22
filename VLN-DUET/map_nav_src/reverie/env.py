@@ -8,6 +8,7 @@ import random
 import networkx as nx
 from collections import defaultdict
 import copy
+import wandb
 
 import MatterSim
 

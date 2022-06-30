@@ -1,4 +1,5 @@
 import argparse
+import wandb
 import os
 
 
@@ -103,9 +104,15 @@ def parse_args():
         default='imitation'
     )
 
-    args, _ = parser.parse_known_args()
+    # wandb
+    parser.add_argument('--wandb', action='store_true', default=False)
+    parser.add_argument('--run_name', type=str, default="vanilla")
 
+    args, _ = parser.parse_known_args()
     args = postprocess_args(args)
+
+    if args.wandb:
+        wandb.init(project="reverie-challenge", name=args.run_name)
 
     return args
 
