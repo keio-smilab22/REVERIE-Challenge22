@@ -92,32 +92,13 @@ def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
 
 def load_obj2vps(bbox_file):
     obj2vps = {}
-    bbox_size = 10567
-
-    with open(bbox_file + "/bbox.txt", "r") as tf:
-        bbox_list = tf.read().split('\n')
- 
-    for i in range(bbox_size):
-        bbox_file_2 = os.path.join(bbox_file + "/" + bbox_list[i])
-        bbox_data = json.load(open(bbox_file_2))
-        _, file_name = bbox_list[i].split('/')
-        scan, vp_old = file_name.split('_')
-        vp, _ = vp_old.split('.')
-        value = bbox_data[vp]
+    bbox_data = json.load(open(bbox_file))
+    for scanvp, value in bbox_data.items():
+        scan, vp = scanvp.split('_')
         # for all visible objects at that viewpoint
         for objid, objinfo in value.items():
             if objinfo['visible_pos']:
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
-
-    # bbox_data = json.load(open(bbox_file))
-    # for scanvp, value in bbox_data.items():
-    #     scan, vp = scanvp.split('_')
-    #     # for all visible objects at that viewpoint
-    #     for objid, objinfo in value.items():
-    #         if objinfo['visible_pos']:
-    #             # if such object not already in the dict
-    #             obj2vps.setdefault(scan+'_'+objid, [])
-    #             obj2vps[scan+'_'+objid].append(vp)
     return obj2vps

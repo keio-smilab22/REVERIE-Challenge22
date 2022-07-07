@@ -324,6 +324,7 @@ class ReverieObjectNavBatch(object):
                 min_dist = np.inf
                 for vp in self.obj2vps['%s_%s'%(ob['scan'], str(gt_objid))]:
                     try:
+                        print(ob['scan'], ob['viewpoint'], vp)
                         min_dist = min(min_dist, self.shortest_distances[ob['scan']][ob['viewpoint']][vp])
                     except:
                         print(ob['scan'], ob['viewpoint'], vp)
