@@ -68,10 +68,12 @@ def build_dataset(args, rank=0):
         )
 
     # val_env_names = ['val_train_seen']
-    val_env_names = ['val_seen', 'val_unseen', 'val_half_seen', 'val_half_unseen', 'psudo_test_seen', 'psudo_test_unseen']
+    val_env_names = ['val_seen', 'val_unseen', 'val_half_seen', 'val_half_unseen']
 
     if args.submit:
         val_env_names.append('test')
+        val_env_names.append('psudo_test_seen')
+        val_env_names.append('psudo_test_unseen')
         
     val_envs = {}
     for split in val_env_names:
