@@ -1,0 +1,38 @@
+
+
+s_featureType = "sift";
+s_outputFile = "sift.csv"; 
+//s_featureType = "orb";
+//s_outputFile = "orb.csv";
+//s_featureType = "surf";
+//s_outputFile = "surf.csv";
+
+
+//s_srcPath = "W:/data/matterport/v1_converted";
+s_dataPath = "//tirion/share/datasets/Matterport/Matching1/";
+s_sceneFileList = "//tirion/share/datasets/Matterport/Matching/scenes_test_small.txt";
+s_maxNumSensors = 3;
+
+s_numThresholds = 1000;
+s_keyMatchSkip = 20;
+s_keyPadding = 64;
+
+s_maxNumImages = 0
+
+s_keyDetectWidth = 1280;
+s_keyDetectHeight = 1024;
+
+////debugging
+//s_dataPath = "../MatchFinder/ref-output/";
+//s_outputFile = "test.csv";
+
+////mp test set
+//s_sceneFileList = "//tirion/share/datasets/Matterport/Matching1/scenes_test.txt";
+//s_keyMatchSkip = 300;
+
+//sun3d test set
+s_dataPath = "//tirion/share/datasets/Matterport/MatchingSun3d/";
+s_sceneFileList = "//tirion/share/datasets/Matterport/MatchingSun3d/scenes_test.txt";
+s_keyMatchSkip = 1;
+s_keyDetectWidth = 640;
+s_keyDetectHeight = 480;
