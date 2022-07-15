@@ -23,7 +23,7 @@ def read_file(split, duet_dir, gt=False):
         for line in fin:
             idxs.append(json.loads(line))
     
-    file_name = "REVERIE_" + split + "_enc.json"
+    file_name = "REVERIE_" + split + ".json"
     sents_file = os.path.join(duet_dir, "VLN-DUET/datasets/REVERIE/annotations/", file_name)
     sents = json.load(open(sents_file, 'r'))
 
