@@ -33,7 +33,7 @@ flag="--root_dir ${DATA_ROOT}
 
       --train_alg ${train_alg}
       
-      --num_l_layers 9
+      --num_l_layers 3
       --num_x_layers 4
       --num_pano_layers 2
       
@@ -43,7 +43,7 @@ flag="--root_dir ${DATA_ROOT}
 
       --batch_size 8
       --lr 1e-5
-      --iters 200000
+      --iters 10000
       --log_every 1000
       --optim adam
 
@@ -63,14 +63,14 @@ flag="--root_dir ${DATA_ROOT}
       --wandb"
 
 # train
-CUDA_VISIBLE_DEVICES='1' python -m pdb -c c reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='2' python -m pdb -c c reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth
       # --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth \
       # --eval_first
 
 # test
-CUDA_VISIBLE_DEVICES='1' python reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='2' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --resume_file ../datasets/REVERIE/trained_models/best_val_unseen \
       --test --submit

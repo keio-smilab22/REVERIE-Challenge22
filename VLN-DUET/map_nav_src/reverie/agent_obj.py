@@ -22,6 +22,7 @@ from .agent_base import Seq2SeqAgent
 from models.graph_utils import GraphMap
 from models.model import VLNBert, Critic
 from models.ops import pad_tensors_wgrad
+import clip
 
 
 class GMapObjectNavAgent(Seq2SeqAgent):
@@ -385,9 +386,22 @@ class GMapObjectNavAgent(Seq2SeqAgent):
                         'og': i_objids[torch.argmax(i_obj_logits)] if len(i_objids) > 0 else None,
                         'og_details': {'objids': i_objids, 'logits': i_obj_logits[:len(i_objids)]},
                     }
+            # for i, gmap in enumerate(gmaps):
+            #     if not ended[i]:
+            #         i_vp = obs[i]['viewpoint']
+            #         # update i_vp: stop and object grounding scores
+            #         i_objids = obs[i]['obj_ids']
+            #         i_obj_logits = obj_logits[i, pano_inputs['view_lens'][i]+1:]
+            #         gmap.node_clip[i_vp] = np.mean(obs[i]['clip_feat'])
+            #         gmap.node_stop_scores[i_vp] = {
+            #             'stop': nav_probs[i, 0].data.item() * gmap.node_clip[i_vp], # memo: とりあえずstop_scoreをclip特徴で重み付けしてみた
+            #             'og': i_objids[torch.argmax(i_obj_logits)] if len(i_objids) > 0 else None,
+            #             'og_details': {'objids': i_objids, 'logits': i_obj_logits[:len(i_objids)]},
+            #         }
                                         
             if train_ml is not None:
                 # Supervised training
+                # train_ml += clip_loss
                 nav_targets = self._teacher_action(
                     obs, nav_vpids, ended, 
                     visited_masks=nav_inputs['gmap_visited_masks'] if self.args.fusion != 'local' else None

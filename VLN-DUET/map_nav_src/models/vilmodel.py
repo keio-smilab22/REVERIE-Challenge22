@@ -700,7 +700,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         txt_token_type_ids = torch.zeros_like(txt_ids)
         txt_embeds = self.embeddings(txt_ids, token_type_ids=txt_token_type_ids)
         txt_embeds = self.lang_encoder(txt_embeds, txt_masks)
-        return txt_embeds
+        return txt_embeds   
 
     def forward_panorama_per_step(
         self, view_img_fts, obj_img_fts, loc_fts, nav_types, view_lens, obj_lens
@@ -839,8 +839,12 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             return txt_embeds
 
         elif mode == 'panorama':
+            # pano_embeds, pano_masks = self.forward_panorama_per_step(
+            #     batch['view_img_fts'], batch['obj_img_fts'], batch['loc_fts'],
+            #     batch['nav_types'], batch['view_lens'], batch['obj_lens']
+            # )
             pano_embeds, pano_masks = self.forward_panorama_per_step(
-                batch['view_img_fts'], batch['obj_img_fts'], batch['loc_fts'],
+                batch['clip_feats'], batch['obj_img_fts'], batch['loc_fts'],
                 batch['nav_types'], batch['view_lens'], batch['obj_lens']
             )
             return pano_embeds, pano_masks
