@@ -328,6 +328,7 @@ class ReverieObjectNavBatch(object):
                     except:
                         print(ob['scan'], ob['viewpoint'], vp)
                         exit(0)
+                        # min_dist = np.inf
                 ob['distance'] = min_dist
             else:
                 ob['distance'] = 0
@@ -404,4 +405,3 @@ class ReverieObjectNavBatch(object):
             'rgspl': np.mean(metrics['rgspl']) * 100,
         }
         return avg_metrics, metrics
-

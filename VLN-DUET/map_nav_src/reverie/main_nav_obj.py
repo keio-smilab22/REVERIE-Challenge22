@@ -28,7 +28,8 @@ def build_dataset(args, rank=0):
 
     feat_db = ImageFeaturesDB(args.img_ft_file, args.image_feat_size)
     obj_db = ObjectFeatureDB(args.obj_ft_file, args.obj_feat_size)
-    obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes.json'))
+    # obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes.json'))
+    obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes_v2.json'))
 
     dataset_class = ReverieObjectNavBatch
 
@@ -67,10 +68,12 @@ def build_dataset(args, rank=0):
         )
 
     # val_env_names = ['val_train_seen']
-    val_env_names = ['val_train_seen', 'val_seen', 'val_unseen']
+    val_env_names = ['val_seen', 'val_unseen', 'val_half_seen', 'val_half_unseen']
 
     if args.submit:
         val_env_names.append('test')
+        val_env_names.append('psudo_test_seen')
+        val_env_names.append('psudo_test_unseen')
         
     val_envs = {}
     for split in val_env_names:

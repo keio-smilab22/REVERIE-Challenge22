@@ -17,7 +17,8 @@ class ImageFeaturesDB(object):
         if key in self._feature_store:
             ft = self._feature_store[key]
         else:
-            with h5py.File(self.img_ft_file, 'r') as f:
+            # memo: "img_ft_file": "../datasets/R2R/features/pth_vit_base_patch16_224_imagenet.hdf5" を読み込んでるみたい
+            with h5py.File(self.img_ft_file, 'r') as f: # memo: hdfで各viewに対する特徴量を読み込んでいる
                 ft = f[key][...][:, :self.image_feat_size].astype(np.float32)
                 self._feature_store[key] = ft
         return ft

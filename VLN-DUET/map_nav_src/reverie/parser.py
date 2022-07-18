@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument("--node_rank", type=int, default=0, help="Id of the node")
     
     # General
-    parser.add_argument('--iters', type=int, default=100000, help='training iterations')
+    parser.add_argument('--iters', type=int, default=10000, help='training iterations')
     parser.add_argument('--log_every', type=int, default=1000)
     parser.add_argument('--eval_first', action='store_true', default=False)
 

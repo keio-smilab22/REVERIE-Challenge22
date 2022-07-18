@@ -555,7 +555,7 @@ class LocalVPEncoder(nn.Module):
         vp_embeds, vp_masks = self.vp_input_embedding(
             split_traj_embeds, split_traj_vp_lens, vp_pos_fts
         )
-        vp_embeds = self.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks)
+        vp_embeds = self.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks) # memo: 尤度を計算してると思う
         return vp_embeds
 
 class GlobalMapEncoder(nn.Module):
@@ -566,6 +566,7 @@ class GlobalMapEncoder(nn.Module):
             BertLayerNorm(config.hidden_size, eps=1e-12)
         )
         self.gmap_step_embeddings = nn.Embedding(config.max_action_steps, config.hidden_size)
+        # BERTのattention機構を繰り返す構造
         self.encoder = CrossmodalEncoder(config)
         
         if config.graph_sprels:
@@ -657,7 +658,7 @@ class ClsPrediction(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class GlocalTextPathNavCMT(BertPreTrainedModel):
+class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本はこいつか？？？？
     def __init__(self, config):
         super().__init__(config)
         self.embeddings = BertEmbeddings(config)
@@ -747,7 +748,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
             )
         return pano_embeds, pano_masks
 
-    def forward_navigation_per_step(
+    def forward_navigation_per_step( # memo: ナビゲーションの大本はこいつ
         self, txt_embeds, txt_masks, gmap_img_embeds, gmap_step_ids, gmap_pos_fts, 
         gmap_masks, gmap_pair_dists, gmap_visited_masks, gmap_vpids,
         vp_img_embeds, vp_pos_fts, vp_masks, vp_nav_masks, vp_obj_masks, vp_cand_vpids,
@@ -775,6 +776,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         vp_embeds = self.local_encoder.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks)
             
         # navigation logits
+        # memo: ナビゲーション 尤度 発見！
         if self.sap_fuse_linear is None:
             fuse_weights = 0.5
         else:
@@ -784,8 +786,9 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         # print(fuse_weights)
 
         global_logits = self.global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
-        global_logits.masked_fill_(gmap_visited_masks, -float('inf'))
+        global_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         global_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
+        # memo: 尤度！
         # print('global', torch.softmax(global_logits, 1)[0], global_logits[0])
 
         local_logits = self.local_sap_head(vp_embeds).squeeze(2) * (1 - fuse_weights)
@@ -830,7 +833,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         }
         return outs
 
-    def forward(self, mode, batch, **kwargs):
+    def forward(self, mode, batch, **kwargs): # memo: モデルの根本はこいつ？
         if mode == 'language':
             txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'])
             return txt_embeds

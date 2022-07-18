@@ -101,6 +101,7 @@ class GraphMap(object):
         self.node_embeds = {}       # {viewpoint: feature (sum feature, count)}
         self.node_stop_scores = {}  # {viewpoint: prob}
         self.node_nav_scores = {}   # {viewpoint: {t: prob}}
+        self.node_clip = {}
         self.node_step_ids = {}
 
     def update_graph(self, ob):

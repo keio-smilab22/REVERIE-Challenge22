@@ -59,18 +59,18 @@ flag="--root_dir ${DATA_ROOT}
       --dropout 0.5
       
       --gamma 0.
-      
+
       --wandb"
 
 # train
-CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='1' python -m pdb -c c reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth
       # --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth \
       # --eval_first
 
 # test
-CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='1' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --resume_file ../datasets/REVERIE/trained_models/best_val_unseen \
       --test --submit
