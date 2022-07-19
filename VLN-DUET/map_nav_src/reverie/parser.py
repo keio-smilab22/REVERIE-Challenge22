@@ -108,6 +108,11 @@ def parse_args():
     parser.add_argument('--wandb', action='store_true', default=False)
     parser.add_argument('--run_name', type=str, default="vanilla")
 
+    # MAT
+    parser.add_argument('--mat', action='store_true', default=False)
+    parser.add_argument('--mat_step', type=int, default=4)
+    parser.add_argument('--mat_loss_weight', type=float, default=1.5)
+
     args, _ = parser.parse_known_args()
     args = postprocess_args(args)
 

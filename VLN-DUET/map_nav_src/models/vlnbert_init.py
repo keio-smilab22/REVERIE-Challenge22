@@ -10,6 +10,8 @@ def get_tokenizer(args):
     tokenizer = AutoTokenizer.from_pretrained(cfg_name)
     return tokenizer
 
+#def get_vlnbert_models(args, config=None,\
+#        adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None):
 def get_vlnbert_models(args, config=None):
     
     from transformers import PretrainedConfig
@@ -59,6 +61,15 @@ def get_vlnbert_models(args, config=None):
     visual_model = GlocalTextPathNavCMT.from_pretrained(
         pretrained_model_name_or_path=None, 
         config=vis_config, 
-        state_dict=new_ckpt_weights)
+        state_dict=new_ckpt_weights) # initialize the VLN-BERT
+
+    #visual_model = GlocalTextPathNavCMT.from_pretrained(
+    #    pretrained_model_name_or_path=None, 
+    #    config=vis_config, 
+    #    state_dict=new_ckpt_weights,
+    #    adv_training=False, 
+    #    adv_delta_coarse=None, 
+    #    adv_delta_txt=None, 
+    #    adv_delta_fine=None) # initialize the VLN-BERT
         
     return visual_model

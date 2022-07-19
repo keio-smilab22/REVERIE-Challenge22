@@ -15,25 +15,34 @@ class VLNBert(nn.Module):
         print('\nInitalizing the VLN-BERT model ...')
         self.args = args
 
-        self.vln_bert = get_vlnbert_models(args, config=None)  # initialize the VLN-BERT
+        self.vln_bert = get_vlnbert_models(args, config=None) # initialize the VLN-BERT
+        #self.vln_bert = get_vlnbert_models(args, config=None,\
+        #    adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None) # initialize the VLN-BERT
         self.drop_env = nn.Dropout(p=args.feat_dropout)
         
-    def forward(self, mode, batch):
+    def forward(self, mode, batch, adv_training=False, adv_delta_coarse=None,\
+            adv_delta_txt=None, adv_delta_fine=None):
         batch = collections.defaultdict(lambda: None, batch)
         
         if mode == 'language':            
-            txt_embeds = self.vln_bert(mode, batch)
+            txt_embeds = self.vln_bert(mode, batch, adv_training=adv_training,\
+                        adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                        adv_delta_fine=adv_delta_fine)
             return txt_embeds
 
         elif mode == 'panorama':
             batch['view_img_fts'] = self.drop_env(batch['view_img_fts'])
             if 'obj_img_fts' in batch:
                 batch['obj_img_fts'] = self.drop_env(batch['obj_img_fts'])
-            pano_embeds, pano_masks = self.vln_bert(mode, batch)
+            pano_embeds, pano_masks = self.vln_bert(mode, batch, adv_training=adv_training,\
+                            adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                            adv_delta_fine=adv_delta_fine)
             return pano_embeds, pano_masks
 
         elif mode == 'navigation':
-            outs = self.vln_bert(mode, batch)
+            outs = self.vln_bert(mode, batch, adv_training=adv_training,\
+                            adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                            adv_delta_fine=adv_delta_fine)
             return outs
 
         else:

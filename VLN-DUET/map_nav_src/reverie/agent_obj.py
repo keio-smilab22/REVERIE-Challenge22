@@ -28,6 +28,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
     
     def _build_model(self):
         self.vln_bert = VLNBert(self.args).cuda()
+        #self.vln_bert = VLNBert(self.args, \
+        #            adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None).cuda()
         self.critic = Critic(self.args).cuda()
         # buffer
         self.scanvp_cands = {}
@@ -289,7 +291,7 @@ class GMapObjectNavAgent(Seq2SeqAgent):
                 self.scanvp_cands[scanvp][cand['viewpointId']] = cand['pointId']
 
     # @profile
-    def rollout(self, train_ml=None, train_rl=False, reset=True):
+    def rollout(self, train_ml=None, train_rl=False, reset=True, adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None):
         if reset:  # Reset env
             obs = self.env.reset()
         else:
@@ -312,7 +314,9 @@ class GMapObjectNavAgent(Seq2SeqAgent):
 
         # Language input: txt_ids, txt_masks
         language_inputs = self._language_variable(obs)
-        txt_embeds = self.vln_bert('language', language_inputs)
+        txt_embeds = self.vln_bert('language', language_inputs, adv_training=adv_training,\
+                                    adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                                    adv_delta_fine=adv_delta_fine)
     
         # Initialization the tracking state
         ended = np.array([False] * batch_size)
@@ -331,7 +335,9 @@ class GMapObjectNavAgent(Seq2SeqAgent):
 
             # graph representation
             pano_inputs = self._panorama_feature_variable(obs)
-            pano_embeds, pano_masks = self.vln_bert('panorama', pano_inputs)
+            pano_embeds, pano_masks = self.vln_bert('panorama', pano_inputs, adv_training=adv_training,\
+                                    adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                                    adv_delta_fine=adv_delta_fine)
             avg_pano_embeds = torch.sum(pano_embeds * pano_masks.unsqueeze(2), 1) / \
                               torch.sum(pano_masks, 1, keepdim=True)
 
@@ -358,7 +364,60 @@ class GMapObjectNavAgent(Seq2SeqAgent):
                 'txt_embeds': txt_embeds,
                 'txt_masks': language_inputs['txt_masks'],
             })
-            nav_outs = self.vln_bert('navigation', nav_inputs)
+            nav_outs = self.vln_bert('navigation', nav_inputs, adv_training=adv_training,\
+                                    adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                                    adv_delta_fine=adv_delta_fine)
+    
+        # Initialization the tracking state
+        ended = np.array([False] * batch_size)
+        just_ended = np.array([False] * batch_size)
+
+        # Init the logs
+        masks = []
+        entropys = []
+        ml_loss = 0.     
+        og_loss = 0.   
+
+        for t in range(self.args.max_action_len):
+            for i, gmap in enumerate(gmaps):
+                if not ended[i]:
+                    gmap.node_step_ids[obs[i]['viewpoint']] = t + 1
+
+            # graph representation
+            pano_inputs = self._panorama_feature_variable(obs)
+            pano_embeds, pano_masks = self.vln_bert('panorama', pano_inputs, adv_training=adv_training,\
+                                        adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                                        adv_delta_fine=adv_delta_fine)
+
+            avg_pano_embeds = torch.sum(pano_embeds * pano_masks.unsqueeze(2), 1) / \
+                              torch.sum(pano_masks, 1, keepdim=True)
+
+            for i, gmap in enumerate(gmaps):
+                if not ended[i]:
+                    # update visited node
+                    i_vp = obs[i]['viewpoint']
+                    gmap.update_node_embed(i_vp, avg_pano_embeds[i], rewrite=True)
+                    # update unvisited nodes
+                    for j, i_cand_vp in enumerate(pano_inputs['cand_vpids'][i]):
+                        if not gmap.graph.visited(i_cand_vp):
+                            gmap.update_node_embed(i_cand_vp, pano_embeds[i, j])
+
+            # navigation policy
+            nav_inputs = self._nav_gmap_variable(obs, gmaps)
+            nav_inputs.update(
+                self._nav_vp_variable(
+                    obs, gmaps, pano_embeds, pano_inputs['cand_vpids'], 
+                    pano_inputs['view_lens'], pano_inputs['obj_lens'], 
+                    pano_inputs['nav_types'],
+                )
+            )
+            nav_inputs.update({
+                'txt_embeds': txt_embeds,
+                'txt_masks': language_inputs['txt_masks'],
+            })
+            nav_outs = self.vln_bert('navigation', nav_inputs, adv_training=adv_training,\
+                                adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                                adv_delta_fine=adv_delta_fine)
 
             if self.args.fusion == 'local':
                 nav_logits = nav_outs['local_logits']
@@ -492,4 +551,4 @@ class GMapObjectNavAgent(Seq2SeqAgent):
             self.logs['IL_loss'].append(ml_loss.item())
             self.logs['OG_loss'].append(og_loss.item())
 
-        return traj
+        return traj, nav_logits, obj_logits

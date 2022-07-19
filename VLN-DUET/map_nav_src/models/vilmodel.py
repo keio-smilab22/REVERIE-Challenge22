@@ -695,17 +695,21 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
     
-    def forward_text(self, txt_ids, txt_masks):
+    def forward_text(self, txt_ids, txt_masks, adv_training=False, adv_delta_coarse=None,\
+                    adv_delta_txt=None, adv_delta_fine=None):
         txt_token_type_ids = torch.zeros_like(txt_ids)
         txt_embeds = self.embeddings(txt_ids, token_type_ids=txt_token_type_ids)
         txt_embeds = self.lang_encoder(txt_embeds, txt_masks)
         return txt_embeds
 
     def forward_panorama_per_step(
-        self, view_img_fts, obj_img_fts, loc_fts, nav_types, view_lens, obj_lens
+        self, view_img_fts, obj_img_fts, loc_fts, nav_types, view_lens, obj_lens,
+        adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None
     ):
         device = view_img_fts.device
         has_obj = obj_img_fts is not None
+
+        
 
         view_img_embeds = self.img_embeddings.img_layer_norm(
             self.img_embeddings.img_linear(view_img_fts)
@@ -751,8 +755,22 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         self, txt_embeds, txt_masks, gmap_img_embeds, gmap_step_ids, gmap_pos_fts, 
         gmap_masks, gmap_pair_dists, gmap_visited_masks, gmap_vpids,
         vp_img_embeds, vp_pos_fts, vp_masks, vp_nav_masks, vp_obj_masks, vp_cand_vpids,
+        adv_training=False, adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None
     ):
         batch_size = txt_embeds.size(0)
+
+
+        if adv_training:
+            #txt_embeds = txt_embeds + adv_delta_txt
+            print(f"gmap_img_embeds_size:{gmap_img_embeds.size()}")
+
+        if adv_training:
+            #txt_embeds = txt_embeds + adv_delta_txt
+            print(f"txt_emb_size:{txt_embeds.size()}")
+
+        if adv_training:
+            #txt_embeds = txt_embeds + adv_delta_txt
+            print(f"vp_img_embeds_size:{vp_img_embeds.size()}")
 
         # global branch
         gmap_embeds = gmap_img_embeds + \
@@ -830,16 +848,20 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         }
         return outs
 
-    def forward(self, mode, batch, **kwargs):
+    def forward(self, mode, batch, adv_training=False, adv_delta_coarse=None, adv_delta_txt=None,\
+            adv_delta_fine=None, **kwargs):
         if mode == 'language':
-            txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'])
+            txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'], adv_training=adv_training,\
+                    adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                    adv_delta_fine=adv_delta_fine)
             return txt_embeds
 
         elif mode == 'panorama':
             pano_embeds, pano_masks = self.forward_panorama_per_step(
                 batch['view_img_fts'], batch['obj_img_fts'], batch['loc_fts'],
-                batch['nav_types'], batch['view_lens'], batch['obj_lens']
-            )
+                batch['nav_types'], batch['view_lens'], batch['obj_lens'], adv_training=adv_training,\
+                adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                adv_delta_fine=adv_delta_fine)
             return pano_embeds, pano_masks
 
         elif mode == 'navigation':
@@ -849,7 +871,8 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
                 batch['gmap_pair_dists'], batch['gmap_visited_masks'], batch['gmap_vpids'], 
                 batch['vp_img_embeds'], batch['vp_pos_fts'], batch['vp_masks'],
                 batch['vp_nav_masks'], batch['vp_obj_masks'], batch['vp_cand_vpids'],
-            )
+                adv_training=adv_training, adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                adv_delta_fine=adv_delta_fine)
 
             
        

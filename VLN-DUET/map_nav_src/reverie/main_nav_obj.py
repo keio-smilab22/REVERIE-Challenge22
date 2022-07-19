@@ -100,6 +100,7 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
         record_file = os.path.join(args.log_dir, 'train.txt')
         write_to_record_file(str(args) + '\n\n', record_file)
 
+    # model
     agent_class = GMapObjectNavAgent
     listner = agent_class(args, train_env, rank=rank)
 
@@ -140,6 +141,15 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
 
     best_val = {'val_unseen': {"spl": 0., "sr": 0., "state":""}}
 
+
+    if args.mat:
+        adv_step = args.mat_step
+        adv_loss_weight = args.mat_loss_weight
+    else:
+        adv_step = None
+        adv_loss_weight = None
+        #adv_optim = args.mat_optim  #Adam
+
     for idx in range(start_iter, start_iter+args.iters, args.log_every):
         listner.logs = defaultdict(list)
         interval = min(args.log_every, args.iters-idx)
@@ -148,8 +158,12 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
         # Train for log_every interval
         if aug_env is None:
             listner.env = train_env
-            listner.train(interval, feedback=args.feedback)  # Train interval iters
+            #listner.train(interval, feedback=args.feedback)  # Train interval iters
+            listner.train(interval, feedback=args.feedback, use_mat=args.mat, adv_step=adv_step,\
+                    adv_loss_weight=adv_loss_weight)  # Train interval iters
+         
         else:
+            print("######aug_env_using######")
             jdx_length = len(range(interval // 2))
             for jdx in range(interval // 2):
                 # Train with GT data
@@ -195,6 +209,10 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
 
         # Run validation
         loss_str = "iter {}".format(iter)
+
+        ##### MAT  
+
+        ###Validation??????
         for env_name, env in val_envs.items():
             listner.env = env
 

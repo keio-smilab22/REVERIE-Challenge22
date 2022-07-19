@@ -103,6 +103,8 @@ class Seq2SeqAgent(BaseAgent):
     for k, v in env_actions.items():
         env_actions[k] = [[vx] for vx in v]
 
+    #def __init__(self, args, env, rank=0, adv_training=True,\
+    #        adv_delta_coarse=1, adv_delta_txt=2, adv_delta_fine=3):
     def __init__(self, args, env, rank=0):
         super().__init__(env)
         self.args = args
@@ -162,7 +164,11 @@ class Seq2SeqAgent(BaseAgent):
         else:
             super().test(iters=iters)
 
-    def train(self, n_iters, feedback='teacher', **kwargs):
+    #def train(self, n_iters, feedback='teacher', adv_training=True,\
+    #        adv_delta_coarse=None, adv_delta_txt=None, adv_delta_fine=None,\
+    #        **kwargs):# Train interval iters
+    def train(self, n_iters, feedback='teacher', use_mat=False, adv_step=4,\
+            adv_loss_weight=1.5, **kwargs):# Train interval iters
         ''' Train for a given number of iterations '''
         self.feedback = feedback
 
@@ -170,37 +176,158 @@ class Seq2SeqAgent(BaseAgent):
         self.critic.train()
 
         self.losses = []
+
         for iter in tqdm(range(1, n_iters + 1)):
 
             self.vln_bert_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
 
             self.loss = 0
+            
+            adv_training = False
+            coarse_delta = 0
+            txt_delta = 0
+            fine_delta = 0
+            #coarse_delta = torch.zeros().cuda()
+            #txt_delta = torch.zeros().cuda()
+            #fine_delta = torch.zeros().cuda()
 
             if self.args.train_alg == 'imitation':
                 self.feedback = 'teacher'
-                self.rollout(
-                    train_ml=1., train_rl=False, **kwargs
-                )
+                _, nav, obj = self.rollout(train_ml=1., train_rl=False, reset=False, adv_training=adv_training,\
+                            adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                            adv_delta_fine=fine_delta, **kwargs)
             elif self.args.train_alg == 'dagger': 
                 if self.args.ml_weight != 0:
                     self.feedback = 'teacher'
-                    self.rollout(
-                        train_ml=self.args.ml_weight, train_rl=False, **kwargs
-                    )
+                    _, nav, obj = self.rollout(
+                        train_ml=self.args.ml_weight, train_rl=False, adv_training=adv_training,\
+                        adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                        adv_delta_fine=fine_delta, **kwargs)
                 self.feedback = self.args.dagger_sample
-                self.rollout(train_ml=1, train_rl=False, **kwargs)
+                _, nav, obj = self.rollout(train_ml=1., train_rl=False, reset=False, adv_training=adv_training,\
+                            adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                            adv_delta_fine=fine_delta, **kwargs)
             else:
                 if self.args.ml_weight != 0:
                     self.feedback = 'teacher'
-                    self.rollout(
-                        train_ml=self.args.ml_weight, train_rl=False, **kwargs
-                    )
+                    _, nav, obj = self.rollout(
+                        train_ml=self.args.ml_weight, train_rl=False, adv_training=adv_training,\
+                        adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                        adv_delta_fine=fine_delta, **kwargs)
                 self.feedback = 'sample'
-                self.rollout(train_ml=None, train_rl=True, **kwargs)
+                _, nav, obj = self.rollout(train_ml=None, train_rl=True, reset=False, adv_training=adv_training,\
+                            adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                            adv_delta_fine=fine_delta, **kwargs)
 
-            #print(self.rank, iter, self.loss)
-            self.loss.backward()
+            print(f"nav:{nav.size()}")
+            print(f"obj:{obj.size()}")
+
+            
+            if use_mat:
+                self.loss = 0
+                adv_training = True
+                coarse_v, txt_v, fine_v = 0, 0, 0
+                coarse_s, txt_s, fine_s = 0, 0, 0
+
+                for astep in range(adv_step):
+                    #coarse_delta.required_grad_()
+                    #txt_delta.required_grad_()
+                    #fine_delta.required_grad_()
+
+                    if self.args.train_alg == 'imitation':
+                        self.feedback = 'teacher'
+                        _, adv_nav, adv_obj = self.rollout(train_ml=1., train_rl=False, reset=False, adv_training=adv_training,\
+                                    adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                                    adv_delta_fine=fine_delta, **kwargs)
+                    elif self.args.train_alg == 'dagger': 
+                        if self.args.ml_weight != 0:
+                            self.feedback = 'teacher'
+                            _, adv_nav, adv_obj = self.rollout(
+                                train_ml=self.args.ml_weight, train_rl=False, adv_training=adv_training,\
+                                adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                                adv_delta_fine=fine_delta, **kwargs)
+                        self.feedback = self.args.dagger_sample
+                        _, adv_nav, adv_obj = self.rollout(train_ml=1., train_rl=False, reset=False, adv_training=adv_training,\
+                                    adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                                    adv_delta_fine=fine_delta, **kwargs)
+                    else:
+                        if self.args.ml_weight != 0:
+                            self.feedback = 'teacher'
+                            _, adv_nav, adv_obj = self.rollout(
+                                train_ml=self.args.ml_weight, train_rl=False, adv_training=adv_training,\
+                                adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                                adv_delta_fine=fine_delta, **kwargs)
+                        self.feedback = 'sample'
+                        _, adv_nav, adv_obj = self.rollout(train_ml=None, train_rl=True, reset=False, adv_training=adv_training,\
+                                    adv_delta_coarse=coarse_delta, adv_delta_txt=txt_delta,\
+                                    adv_delta_fine=fine_delta, **kwargs)
+
+
+                    print(f"nav2:{adv_nav.size()}")
+                    print(f"obj2:{adv_obj.size()}")
+                    nav_kl_loss = F.kl_div(nav, adv_nav.clone().detach(), reduction='none') + \
+                        F.kl_div(nav.clone().detach(), adv_nav, reduction='none')
+
+                    #obj_kl_loss = F.kl_div(obj, adv_obj.clone().detach(), reduction='none') + \
+                    #    F.kl_div(obj.clone().detach(), adv_obj, reduction='none')
+
+                    total_loss = (self.loss + adv_loss_weight * (nav_kl_loss.mean())) / adv_step
+                    #total_loss = (self.loss + adv_loss_weight * (nav_kl_loss.mean() +\
+                    #            obj_kl_loss.mean())) / adv_step
+                    total_loss.backward(retain_graph=True)
+
+                    if astep == adv_step - 1:
+                        break
+
+                    # coarse
+                    coarse_delta_grad = coarse_delta.grad.clone().detach().float()
+                    denorm = torch.norm(coarse_delta_grad.view(coarse_delta_grad.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    coarse_g = coarse_delta_grad / denorm
+                    beta1, beta2 = 0.9, 0.9
+                    coarse_v = beta1 * coarse_v + (1 - beta1) * coarse_g
+                    coarse_s = beta2 * coarse_s + (1 - beta2) * coarse_g ** 2
+                    coarse_v = coarse_v / (1 - beta1 ** (astep + 1))
+                    coarse_s = coarse_s / (1 - beta2 ** (astep + 1))
+                    denorm = torch.norm(coarse_s.view(coarse_s.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    coarse_delta_step = (1e-3 * coarse_v / denorm).to(coarse_delta)
+                    coarse_delta = (coarse_delta + coarse_delta_step).detach()
+
+                    # txt
+                    txt_delta_grad = txt_delta.grad.clone().detach().float()
+                    denorm = torch.norm(txt_delta_grad.view(txt_delta_grad.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    txt_g = txt_delta_grad / denorm
+                    beta1, beta2 = 0.9, 0.9
+                    txt_v = beta1 * txt_v + (1 - beta1) * txt_g
+                    txt_s = beta2 * txt_s + (1 - beta2) * txt_g ** 2
+                    txt_v = txt_v / (1 - beta1 ** (astep + 1))
+                    txt_s = txt_s / (1 - beta2 ** (astep + 1))
+                    denorm = torch.norm(txt_s.view(txt_s.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    txt_delta_step = (1e-3 * txt_v / denorm).to(txt_delta)
+                    txt_delta = (txt_delta + txt_delta_step).detach()
+            
+                    # fine
+                    fine_delta_grad = fine_delta.grad.clone().detach().float()
+                    denorm = torch.norm(fine_delta_grad.view(fine_delta_grad.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    fine_g = fine_delta_grad / denorm
+                    beta1, beta2 = 0.9, 0.9
+                    fine_v = beta1 * fine_v + (1 - beta1) * fine_g
+                    fine_s = beta2 * fine_s + (1 - beta2) * fine_g ** 2
+                    fine_v = fine_v / (1 - beta1 ** (astep + 1))
+                    fine_s = fine_s / (1 - beta2 ** (astep + 1))
+                    denorm = torch.norm(fine_s.view(fine_s.size(0), -1), dim=1).view(-1, 1)
+                    denorm = torch.clamp(denorm, min=1e-8)
+                    fine_delta_step = (1e-3 * fine_v / denorm).to(fine_delta)
+                    fine_delta = (fine_delta + fine_delta_step).detach()
+
+            else:
+                #print(self.rank, iter, self.loss)
+                self.loss.backward()
 
             torch.nn.utils.clip_grad_norm_(self.vln_bert.parameters(), 40.)
 
