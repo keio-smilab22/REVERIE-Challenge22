@@ -72,5 +72,10 @@ CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
 # test
 CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
-      --resume_file ../datasets/REVERIE/trained_models/best_val_unseen \
-      --test --submit
+      --test --submit \
+      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen
+
+
+
+# --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen \
+# --resume_file ../datasets/REVERIE/trained_models/best_val_unseen
