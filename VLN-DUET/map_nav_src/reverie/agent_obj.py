@@ -488,7 +488,7 @@ class GMapObjectNavAgent(Seq2SeqAgent):
             ml_loss = ml_loss * train_ml / batch_size
             og_loss = og_loss * train_ml / batch_size
             self.loss += ml_loss
-            self.loss += og_loss
+            #self.loss += og_loss
             self.logs['IL_loss'].append(ml_loss.item())
             self.logs['OG_loss'].append(og_loss.item())
 
