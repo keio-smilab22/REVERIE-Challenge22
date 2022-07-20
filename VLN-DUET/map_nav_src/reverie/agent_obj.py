@@ -23,6 +23,7 @@ from models.graph_utils import GraphMap
 from models.model import VLNBert, Critic
 from models.ops import pad_tensors_wgrad
 import clip
+from torchinfo import summary
 
 
 class GMapObjectNavAgent(Seq2SeqAgent):
@@ -313,6 +314,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
 
         # Language input: txt_ids, txt_masks
         language_inputs = self._language_variable(obs)
+        # print(summary(self.vln_bert))
+        # sys.exit()
         txt_embeds = self.vln_bert('language', language_inputs)
     
         # Initialization the tracking state

@@ -22,6 +22,8 @@ from reverie.data_utils import ObjectFeatureDB, construct_instrs, load_obj2vps
 from reverie.env import ReverieObjectNavBatch
 from reverie.parser import parse_args
 
+import io,sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 def build_dataset(args, rank=0):
     tok = get_tokenizer(args)

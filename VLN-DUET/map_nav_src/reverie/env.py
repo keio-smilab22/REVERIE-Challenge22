@@ -136,10 +136,10 @@ class ReverieObjectNavBatch(object):
         print('%s loaded with %d instructions, using splits: %s' % (
             self.__class__.__name__, len(self.data), self.name))
 
-        model, preprocess = clip.load("ViT-B/32", device="cuda")
-        self.clip = model
-        self.clip_preprocess = preprocess
-        self.input_resolution = model.visual.input_resolution
+        # model, preprocess = clip.load("ViT-B/32", device="cuda")
+        # self.clip = model
+        # self.clip_preprocess = preprocess
+        # self.input_resolution = model.visual.input_resolution
 
     def _get_gt_trajs(self, data):
         gt_trajs = {
@@ -334,7 +334,7 @@ class ReverieObjectNavBatch(object):
                 max_objects=self.max_objects
             )
             
-            clip_feat = 0
+            # clip_feat = 0
             # if "nouns" not in item:
             #     item["nouns"] = self._get_nouns(item['instruction'])
             #     # print("> instruction:", item['instruction'])
@@ -342,12 +342,12 @@ class ReverieObjectNavBatch(object):
             #     if len(item["nouns"]) == 0:
             #         item["nouns"] = set(item['instruction'])
 
-            text = clip.tokenize(item["instruction"]).cuda()
-            cube_imgs = []
-            for j in range(4):
-                path = f"../../Matterport3DSimulator/data/data/v1/scans/{state.scanId}/matterport_skybox_images/{state.location.viewpointId}_skybox{j+1}_sami.jpg"
-                assert os.path.exists(path)
-                r = self.input_resolution
+            # text = clip.tokenize(item["instruction"]).cuda()
+            # cube_imgs = []
+            # for j in range(4):
+            #     path = f"../../Matterport3DSimulator/data/data/v1/scans/{state.scanId}/matterport_skybox_images/{state.location.viewpointId}_skybox{j+1}_sami.jpg"
+            #     assert os.path.exists(path)
+            #     r = self.input_resolution
                 # path_res = f"../../Matterport3DSimulator/data/data/v1/scans/{state.scanId}/matterport_skybox_images/{state.location.viewpointId}_skybox{j+1}_sami_{r}.jpg"
                 # if not os.path.exists(path_res):
                 #     img = cv.imread(path)
@@ -358,20 +358,20 @@ class ReverieObjectNavBatch(object):
                 # else:
                 #     img = cv.imread(path_res)
                 
-                img = cv.imread(path)
-                img = cv.resize(img,(r,r))
-                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                img = Image.fromarray(img)
-                img = self.clip_preprocess(img).unsqueeze(0).cuda()
-                cube_imgs.append(img)
+                # img = cv.imread(path)
+                # img = cv.resize(img,(r,r))
+                # img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+                # img = Image.fromarray(img)
+                # img = self.clip_preprocess(img).unsqueeze(0).cuda()
+                # cube_imgs.append(img)
 
-            images = torch.cat(cube_imgs, dim=0)
+            # images = torch.cat(cube_imgs, dim=0)
             # with torch.no_grad():
-                # image_features = self.clip.encode_image(images)
-                # text_features = self.clip.encode_text(text)
-                # logits_per_image, logits_per_text = self.clip(images, text)
-                # clip_feat = logits_per_image.detach().cpu().numpy().flatten()
-            clip_feat = images.cpu().numpy()
+            #     image_features = self.clip.encode_image(images)
+            #     text_features = self.clip.encode_text(text)
+            #     logits_per_image, logits_per_text = self.clip(images, text)
+            #     clip_feat = logits_per_image.detach().cpu().numpy().flatten()
+            # clip_feat = images.cpu().numpy()
                 
 
             ob = { # memo: ここにCLIP特徴に必要なパノラマ画像をぶっこむ
@@ -389,7 +389,7 @@ class ReverieObjectNavBatch(object):
                 'obj_box_fts': obj_box_fts,
                 'obj_ids': obj_ids,
                 'navigableLocations' : state.navigableLocations,
-                'clip_feat': clip_feat,
+                # 'clip_feat': clip_feat,
                 'instruction' : item['instruction'],
                 'instr_encoding': item['instr_encoding'],
                 'gt_path' : item['path'],

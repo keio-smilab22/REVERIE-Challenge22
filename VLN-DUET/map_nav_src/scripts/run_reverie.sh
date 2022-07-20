@@ -34,7 +34,7 @@ flag="--root_dir ${DATA_ROOT}
       --train_alg ${train_alg}
       
       --num_l_layers 3
-      --num_x_layers 4
+      --num_x_layers 3
       --num_pano_layers 2
       
       --max_action_len 15
@@ -56,18 +56,18 @@ flag="--root_dir ${DATA_ROOT}
       --ml_weight 0.2
 
       --feat_dropout 0.4
-      --dropout 0.5
+      --dropout 0.2
       
       --gamma 0.
 
       --wandb"
 
 # train
+# CUDA_VISIBLE_DEVICES='2' python -m pdb -c c reverie/main_nav_obj.py $flag  \
 CUDA_VISIBLE_DEVICES='2' python -m pdb -c c reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
-      --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth
-      # --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth \
-      # --eval_first
+      --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth \
+      --eval_first
 
 # test
 CUDA_VISIBLE_DEVICES='2' python reverie/main_nav_obj.py $flag  \
