@@ -472,10 +472,10 @@ class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, own_feats, lang_feats, lang_attention_mask
+        self, lang_feats, own_feats, own_attention_mask
     ):      
         att_output = self.visual_attention(
-            own_feats, lang_feats, ctx_att_mask=lang_attention_mask # Q, KV, KV_mask
+            lang_feats, own_feats, ctx_att_mask=own_attention_mask # Q, KV, KV_mask
         )[0]
         return att_output
 
@@ -499,10 +499,10 @@ class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, own_att_output, ano_att_output, ano_attention_mask
+        self, ano_att_output, own_att_output, own_attention_mask
     ):      
         att_output = self.cross_attention(
-            own_att_output, ano_att_output, ctx_att_mask=ano_attention_mask
+            ano_att_output, own_att_output, ctx_att_mask=own_attention_mask
         )[0]
         inter_output = self.visn_inter(att_output)
         output = self.visn_output(inter_output, att_output)
@@ -521,11 +521,11 @@ class CrossAttn(nn.Module):
     def forward(
         self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
     ):      
-        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
-        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
+        global_out = self.global_before(lang_feats, gmap_embeds, gmap_masks)
+        local_out = self.local_before(lang_feats, img_embeds, img_masks)
 
-        global_out = self.global_after(global_out, local_out, img_masks)
-        local_out = self.local_before(local_out, global_out, gmap_masks)
+        global_out = self.global_after(local_out, global_out, gmap_masks)
+        local_out = self.local_before(global_out, local_out, img_masks)
 
         return global_out, local_out
 
