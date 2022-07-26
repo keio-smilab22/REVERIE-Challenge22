@@ -521,11 +521,11 @@ class CrossAttn(nn.Module):
     def forward(
         self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
     ):      
-        global_out = self.global_before(lang_feats, gmap_embeds, gmap_masks)
-        local_out = self.local_before(lang_feats, img_embeds, img_masks)
+        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
+        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
 
-        global_out = self.global_after(local_out, global_out, gmap_masks)
-        local_out = self.local_before(global_out, local_out, img_masks)
+        global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
+        local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
 
         return global_out, local_out
 
@@ -547,8 +547,8 @@ class CrossEncoder(nn.Module):
         for layer_module in self.x_layers:
             gmap_embeds, img_embeds = layer_module(
                 txt_embeds, extended_txt_masks, 
-                img_embeds, extended_img_masks,
-                gmap_embeds, extended_gmp_masks
+                gmap_embeds, extended_gmp_masks,
+                img_embeds, extended_img_masks
             )
         return gmap_embeds, img_embeds
 
@@ -594,7 +594,7 @@ class ImageEmbeddings(nn.Module):
             if self.obj_linear is None:
                 traj_obj_img_embeds = self.img_layer_norm(self.img_linear(traj_obj_img_fts))
             else:
-                traj_obj_img_embeds = self.obj_layer_norm(self.obj_linear(traj_obj_img_embeds))
+                traj_obj_img_embeds = self.obj_layer_norm(self.obj_linear(traj_obj_img_fts))
             traj_img_embeds = []
             for view_embed, obj_embed, view_len, obj_len in zip(
                 traj_view_img_embeds, traj_obj_img_embeds, traj_vp_view_lens, traj_vp_obj_lens
