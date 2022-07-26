@@ -37,15 +37,18 @@ class GMapObjectNavAgent(Seq2SeqAgent):
         
         seq_tensor = np.zeros((len(obs), max(seq_lengths)), dtype=np.int64)
         mask = np.zeros((len(obs), max(seq_lengths)), dtype=np.bool)
+        instructions = []
         for i, ob in enumerate(obs):
             seq_tensor[i, :seq_lengths[i]] = ob['instr_encoding']
             mask[i, :seq_lengths[i]] = True
+            instructions.append(ob["instruction"])
 
         seq_tensor = torch.from_numpy(seq_tensor).long().cuda()
         mask = torch.from_numpy(mask).cuda()
         return {
-            'txt_ids': seq_tensor, 'txt_masks': mask
+            'txt_ids': seq_tensor, 'txt_masks': mask, 'instructions': instructions
         }
+
 
     def _panorama_feature_variable(self, obs):
         ''' Extract precomputed features into variable. '''
