@@ -472,11 +472,14 @@ class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, lang_feats, own_feats, own_attention_mask
+        self, own_feats, own_attention_mask, lang_feats, lang_attention_mask
     ):      
         att_output = self.visual_attention(
-            lang_feats, own_feats, ctx_att_mask=own_attention_mask # Q, KV, KV_mask
+            own_feats, lang_feats, ctx_att_mask=lang_attention_mask # Q, KV, KV_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         return att_output
 
 class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（どちらもこれ使う）
@@ -499,10 +502,10 @@ class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, ano_att_output, own_att_output, own_attention_mask
+        self, own_att_output, ano_att_output, ano_attention_mask
     ):      
         att_output = self.cross_attention(
-            ano_att_output, own_att_output, ctx_att_mask=own_attention_mask
+            own_att_output, ano_att_output, ctx_att_mask=ano_attention_mask
         )[0]
         inter_output = self.visn_inter(att_output)
         output = self.visn_output(inter_output, att_output)
@@ -521,8 +524,8 @@ class CrossAttn(nn.Module):
     def forward(
         self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
     ):      
-        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
-        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
+        global_out = self.global_before(gmap_embeds, gmap_masks, lang_feats, lang_attention_mask)
+        local_out = self.local_before(img_embeds, img_masks, lang_feats, lang_attention_mask)
 
         global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
         local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
