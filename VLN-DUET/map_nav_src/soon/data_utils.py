@@ -105,15 +105,20 @@ class ObjectFeatureDB(object):
         obj_loc_fts = np.zeros((len(obj_fts), 3), dtype=np.float32)
         obj_directions, obj_ids = [], []
         if len(obj_fts) > 0:
+            # obj_angをどう計算しているか？
             for k, obj_ang in enumerate(obj_attrs['directions']):
+                # obj_ang_fts[k] = angle_feature(
+                #     obj_ang[0] - base_heading, obj_ang[1] - base_elevation, angle_feat_size
+                # )
                 obj_ang_fts[k] = angle_feature(
-                    obj_ang[0] - base_heading, obj_ang[1] - base_elevation, angle_feat_size
+                    base_heading, base_elevation, angle_feat_size
                 )
                 x1, y1, x2, y2 = obj_attrs['bboxes'][k]
                 h = y2 - y1
                 w = x2 - x1
                 obj_loc_fts[k, :2] = [h/600, w/600]
                 obj_loc_fts[k, 2] = obj_loc_fts[k, 0] * obj_loc_fts[k, 1]
-            obj_directions = [[convert_heading(x[0]), convert_elevation(x[1])] for x in obj_attrs['directions']]
+            # obj_directions = [[convert_heading(x[0]), convert_elevation(x[1])] for x in obj_attrs['directions']]
+            obj_directions = [[convert_heading(0), convert_elevation(0)] for x in obj_attrs['directions']]
             obj_ids = obj_attrs['obj_ids']
         return obj_fts, obj_ang_fts, obj_loc_fts, obj_directions, obj_ids
