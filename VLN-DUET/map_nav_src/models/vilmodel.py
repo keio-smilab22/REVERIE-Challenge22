@@ -18,6 +18,7 @@ from transformers import BertPreTrainedModel
 from .ops import create_transformer_encoder
 from .ops import extend_neg_masks, gen_seq_masks, pad_tensors_wgrad
 
+import clip
 
 logger = logging.getLogger(__name__)
 
@@ -680,7 +681,12 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
             self.og_head = ClsPrediction(self.config.hidden_size)
         
         self.init_weights()
-        
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, preprocess = clip.load("ViT-L/14", device=device)
+        for params in self.clip_model.parameters():
+            params.requires_grad = False
+
         if config.fix_lang_embedding or config.fix_local_branch:
             for k, v in self.embeddings.named_parameters():
                 v.requires_grad = False
@@ -836,11 +842,8 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         if mode == 'language':
             txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'])
             
-            import clip 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            clip_model, preprocess = clip.load("ViT-L/14", device=device)
-            clip_text = clip.tokenize(batch["instructions"]).to(device)
-            clip_text_features = clip_model.encode_text(clip_text)
+            clip_text = clip.tokenize(batch["instructions"]).to("cuda")
+            clip_text_features = self.clip_model.encode_text(clip_text)
             clip_text_features = clip_text_features.unsqueeze(1)
             # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
             txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
