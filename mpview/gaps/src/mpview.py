@@ -16,7 +16,11 @@ import cv2
 def read_file(split, duet_dir, gt=False):
     # インデックスファイルの読み込み
     # GTの場合このファイルからパスを取得する
-    file_name = "REVERIE_" + split + "_enc.jsonl"
+    if (split == 'psudo_test_unseen' or split == 'val_half_unseen' or split == 'val_unseen'):
+        enc = "val_unseen"
+    else:
+        enc = "val_seen"
+    file_name = "REVERIE_" + enc + "_enc.jsonl"
     idx_file = os.path.join(duet_dir, "VLN-DUET/datasets/REVERIE/annotations/pretrain/", file_name)
     idxs = []
     with open(idx_file, 'r') as fin:
@@ -30,7 +34,8 @@ def read_file(split, duet_dir, gt=False):
 
     # 結果ファイルの読みこみ
     file_name = "submit_" + split + "_dynamic.json"
-    res_file = os.path.join(duet_dir, "VLN-DUET/datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/preds", file_name)
+    # res_file = os.path.join(duet_dir, "VLN-DUET/datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/preds", file_name)
+    res_file = os.path.join("/home/vs22/Downloads/ID3/", file_name)
     res = json.load(open(res_file, 'r'))
     return idxs, res, sents
 
@@ -62,19 +67,21 @@ def make_interfile(outputdir, split, duet_dir, gt=False):
                 for node in res_path["trajectory"]:
                     for each in node:
                         f.write(each + " ")
-        make_img(outputdir, tmp_idx, inter_file, inst, gt)
+        make_img(outputdir, tmp_idx, inter_file, inst, split, gt)
 
 
 
-def make_img(outputdir, idx, inter_file, inst, gt=False):
+def make_img(outputdir, idx, inter_file, inst, split, gt=False):
     with open("make_img.sh", "w") as f:
         f.write("#!/bin/sh" + "\n")
         input_house = "$MATTDATA/" + idx["scan"] + "/house_segmentations/*.house"
         input_scene = "$MATTDATA/" + idx["scan"] + "/matterport_mesh/*/*.obj"
+        if (split == 'psudo_test_unseen' or split == 'val_half_unseen'):
+            idx["instr_id"] = "un_" + idx["instr_id"]
         if gt:
-            img_name = "/gt_" + idx["instr_id"] + ".jpg"
+            img_name = idx["instr_id"] + "_gt.jpg"
         else:
-            img_name = "/" + idx["instr_id"] + ".jpg"
+            img_name = idx["instr_id"] + ".jpg"
         output_img = os.path.join(outputdir + img_name)
         command = "../bin/x86_64/mpview -input_house " + input_house + " -input_scene " + input_scene + " -output_image " + output_img + " -path " + inter_file +" -batch"
         f.write(command + "\n")
@@ -101,7 +108,7 @@ def make_img(outputdir, idx, inter_file, inst, gt=False):
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_dir', '-o', type=str, help="画像を格納するディレクトリ")
-    parser.add_argument('--split', '-s', choices=['train', 'val_seen', 'val_unseen'])
+    parser.add_argument('--split', '-s', choices=['psudo_test_seen', 'psudo_test_unseen', 'val_half_seen', 'val_half_unseen', 'val_unseen', 'val_seen'])
     parser.add_argument('--duet_dir', '-d', type=str, help="DUETの親ディレクトリまでのパス")
     parser.add_argument('-gt', action='store_true')
     args = parser.parse_args() 

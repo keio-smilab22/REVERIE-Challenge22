@@ -1,2 +1,2 @@
 #!/bin/sh
-../bin/x86_64/mpview -input_house $MATTDATA/8WUmhLawc2A/house_segmentations/*.house -input_scene $MATTDATA/8WUmhLawc2A/matterport_mesh/*/*.obj -output_image /home/vs22/REVERIE-Challenge22/VLN-DUET/datasets/REVERIE/res_images/gt_595_99_2.jpg -path /home/vs22/REVERIE-Challenge22/VLN-DUET/datasets/REVERIE/res_images/scene-path.txt -batch
+../bin/x86_64/mpview -input_house $MATTDATA/oLBMNvg9in8/house_segmentations/*.house -input_scene $MATTDATA/oLBMNvg9in8/matterport_mesh/*/*.obj -output_image /home/vs22/REVERIE-Challenge22/mpview/res_id0/un_6560_742_2_gt.jpg -path /home/vs22/REVERIE-Challenge22/mpview/res_id0/scene-path.txt -batch

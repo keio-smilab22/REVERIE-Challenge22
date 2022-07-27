@@ -56,13 +56,11 @@ def load_instr_datasets(anno_dir, dataset, splits, tokenizer):
     data = []
     for split in splits:
         if "/" not in split:    # the official splits
-            if tokenizer == 'bert':
-                filepath = os.path.join(anno_dir, 'REVERIE_%s_enc.json' % split)
-            elif tokenizer == 'xlm':
-                filepath = os.path.join(anno_dir, 'REVERIE_%s_enc_xlmr.json' % split)
+            if tokenizer == 'bert' or tokenizer == 'xlm':
+                filepath = os.path.join(anno_dir, 'REVERIE_%s.json' % split)
             else:
                 raise NotImplementedError('unspported tokenizer %s' % tokenizer)
-
+ 
             with open(filepath) as f:
                 new_data = json.load(f)
         else:   # augmented data
@@ -72,6 +70,7 @@ def load_instr_datasets(anno_dir, dataset, splits, tokenizer):
         # Join
         data += new_data
     return data
+
 
 def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
     data = []
