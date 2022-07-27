@@ -759,38 +759,50 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
     ):
         batch_size = txt_embeds.size(0)
 
+        #if adv_training:
+        #    noisy_gmap_img_embeds = gmap_img_embeds + adv_delta_coarse
+        #    noisy_txt_embeds = txt_embeds + adv_delta_txt
+        #    noisy_vp_img_embeds = vp_img_embeds + adv_delta_fine
+        #    # global branch
+        #    gmap_embeds = noisy_gmap_img_embeds + \
+        #                  self.global_encoder.gmap_step_embeddings(gmap_step_ids) + \
+        #                  self.global_encoder.gmap_pos_embeddings(gmap_pos_fts)
+        #    if self.global_encoder.sprel_linear is not None:
+        #        graph_sprels = self.global_encoder.sprel_linear(
+        #            gmap_pair_dists.unsqueeze(3)).squeeze(3).unsqueeze(1)
+        #    else:
+        #        graph_sprels = None
 
-        if adv_training:
-            #txt_embeds = txt_embeds + adv_delta_txt
-            print(f"gmap_img_embeds_size:{gmap_img_embeds.size()}")
-
-        if adv_training:
-            #txt_embeds = txt_embeds + adv_delta_txt
-            print(f"txt_emb_size:{txt_embeds.size()}")
-
-        if adv_training:
-            #txt_embeds = txt_embeds + adv_delta_txt
-            print(f"vp_img_embeds_size:{vp_img_embeds.size()}")
-
-        # global branch
-        gmap_embeds = gmap_img_embeds + \
-                      self.global_encoder.gmap_step_embeddings(gmap_step_ids) + \
-                      self.global_encoder.gmap_pos_embeddings(gmap_pos_fts)
-
-        if self.global_encoder.sprel_linear is not None:
-            graph_sprels = self.global_encoder.sprel_linear(
-                gmap_pair_dists.unsqueeze(3)).squeeze(3).unsqueeze(1)
-        else:
-            graph_sprels = None
-
-        gmap_embeds = self.global_encoder.encoder(
-            txt_embeds, txt_masks, gmap_embeds, gmap_masks,
-            graph_sprels=graph_sprels
-        )
+        #    gmap_embeds = self.global_encoder.encoder(
+        #        noisy_txt_embeds, txt_masks, gmap_embeds, gmap_masks,
+        #        graph_sprels=graph_sprels
+        #    )
        
-        # local branch
-        vp_embeds = vp_img_embeds + self.local_encoder.vp_pos_embeddings(vp_pos_fts)
-        vp_embeds = self.local_encoder.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks)
+        #    # local branch
+        #    vp_embeds = noisy_vp_img_embeds + self.local_encoder.vp_pos_embeddings(vp_pos_fts)
+        #    vp_embeds = self.local_encoder.encoder(noisy_txt_embeds, txt_masks, vp_embeds, vp_masks)
+
+        #else:
+        if True:
+            # global branch
+            gmap_embeds = gmap_img_embeds + \
+                          self.global_encoder.gmap_step_embeddings(gmap_step_ids) + \
+                          self.global_encoder.gmap_pos_embeddings(gmap_pos_fts)
+
+            if self.global_encoder.sprel_linear is not None:
+                graph_sprels = self.global_encoder.sprel_linear(
+                    gmap_pair_dists.unsqueeze(3)).squeeze(3).unsqueeze(1)
+            else:
+                graph_sprels = None
+
+            gmap_embeds = self.global_encoder.encoder(
+                txt_embeds, txt_masks, gmap_embeds, gmap_masks,
+                graph_sprels=graph_sprels
+            )
+       
+            # local branch
+            vp_embeds = vp_img_embeds + self.local_encoder.vp_pos_embeddings(vp_pos_fts)
+            vp_embeds = self.local_encoder.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks)
             
         # navigation logits
         if self.sap_fuse_linear is None:
@@ -838,22 +850,37 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
         else:
             obj_logits = None
 
-        outs = {
-            'gmap_embeds': gmap_embeds,
-            'vp_embeds': vp_embeds,
-            'global_logits': global_logits,
-            'local_logits': local_logits,
-            'fused_logits': fused_logits,
-            'obj_logits': obj_logits,
-        }
+        if adv_training:
+            outs = {
+                'gmap_embeds': gmap_embeds + adv_delta_coarse,
+                'vp_embeds': vp_embeds + adv_delta_fine,
+                'global_logits': global_logits,
+                'local_logits': local_logits,
+                'fused_logits': fused_logits,
+                'obj_logits': obj_logits,
+            }
+        else:
+            outs = {
+                'gmap_embeds': gmap_embeds,
+                'vp_embeds': vp_embeds,
+                'global_logits': global_logits,
+                'local_logits': local_logits,
+                'fused_logits': fused_logits,
+                'obj_logits': obj_logits,
+            }
         return outs
 
     def forward(self, mode, batch, adv_training=False, adv_delta_coarse=None, adv_delta_txt=None,\
             adv_delta_fine=None, **kwargs):
         if mode == 'language':
-            txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'], adv_training=adv_training,\
-                    adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
-                    adv_delta_fine=adv_delta_fine)
+            if adv_training:
+                txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'], adv_training=adv_training,\
+                        adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                        adv_delta_fine=adv_delta_fine) + adv_delta_coarse
+            else:
+                txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'], adv_training=adv_training,\
+                        adv_delta_coarse=adv_delta_coarse, adv_delta_txt=adv_delta_txt,\
+                        adv_delta_fine=adv_delta_fine)
             return txt_embeds
 
         elif mode == 'panorama':
