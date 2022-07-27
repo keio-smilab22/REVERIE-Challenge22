@@ -451,6 +451,108 @@ class CrossmodalEncoder(nn.Module):
             )
         return img_embeds
 
+
+class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（どちらもこれ使う）
+    def __init__(self, config):
+        super().__init__()
+
+        # Lang self-att and FFN layer
+        if config.use_lang2visn_attn:
+            self.lang_self_att = BertAttention(config)
+            self.lang_inter = BertIntermediate(config)
+            self.lang_output = BertOutput(config)
+
+        # Visn self-att and FFN layer
+        self.visn_self_att = BertAttention(config)
+        self.visn_inter = BertIntermediate(config)
+        self.visn_output = BertOutput(config)
+
+        # The cross attention layer
+        self.visual_attention = BertXAttention(config)
+        self.cross_attention = BertXAttention(config)
+
+    def forward(
+        self, lang_feats, own_feats, own_attention_mask
+    ):      
+        att_output = self.visual_attention(
+            lang_feats, own_feats, ctx_att_mask=own_attention_mask # Q, KV, KV_mask
+        )[0]
+        return att_output
+
+class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（どちらもこれ使う）
+    def __init__(self, config):
+        super().__init__()
+
+        # Lang self-att and FFN layer
+        if config.use_lang2visn_attn:
+            self.lang_self_att = BertAttention(config)
+            self.lang_inter = BertIntermediate(config)
+            self.lang_output = BertOutput(config)
+
+        # Visn self-att and FFN layer
+        self.visn_self_att = BertAttention(config)
+        self.visn_inter = BertIntermediate(config)
+        self.visn_output = BertOutput(config)
+
+        # The cross attention layer
+        self.visual_attention = BertXAttention(config)
+        self.cross_attention = BertXAttention(config)
+
+    def forward(
+        self, ano_att_output, own_att_output, own_attention_mask
+    ):      
+        att_output = self.cross_attention(
+            ano_att_output, own_att_output, ctx_att_mask=own_attention_mask
+        )[0]
+        inter_output = self.visn_inter(att_output)
+        output = self.visn_output(inter_output, att_output)
+
+        return output
+
+class CrossAttn(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        self.global_before = CrossAttn_before(config)
+        self.global_after = CrossAttn_after(config)
+        self.local_before = CrossAttn_before(config)
+        self.local_after = CrossAttn_after(config)
+
+    def forward(
+        self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
+    ):      
+        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
+        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
+
+        global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
+        local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
+
+        return global_out, local_out
+
+class CrossEncoder(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.num_x_layers = config.num_x_layers
+        self.x_layers = nn.ModuleList(
+            [CrossAttn(config) for _ in range(self.num_x_layers)]
+        )
+        
+
+    def forward(self, txt_embeds, txt_masks, gmap_embeds, gmp_masks, img_embeds, img_masks, graph_sprels=None):
+        extended_txt_masks = extend_neg_masks(txt_masks)
+        extended_img_masks = extend_neg_masks(img_masks) # (N, 1(H), 1(L_q), L_v)
+        extended_gmp_masks = extend_neg_masks(gmp_masks)
+        # print(img_embeds.shape) (N, 45, hidden)
+        # print(gmap_embeds.shape) (N, 10, hidden)
+        for layer_module in self.x_layers:
+            gmap_embeds, img_embeds = layer_module(
+                txt_embeds, extended_txt_masks, 
+                gmap_embeds, extended_gmp_masks,
+                img_embeds, extended_img_masks
+            )
+        return gmap_embeds, img_embeds
+
+
 class ImageEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -492,7 +594,7 @@ class ImageEmbeddings(nn.Module):
             if self.obj_linear is None:
                 traj_obj_img_embeds = self.img_layer_norm(self.img_linear(traj_obj_img_fts))
             else:
-                traj_obj_img_embeds = self.obj_layer_norm(self.obj_linear(traj_obj_img_embeds))
+                traj_obj_img_embeds = self.obj_layer_norm(self.obj_linear(traj_obj_img_fts))
             traj_img_embeds = []
             for view_embed, obj_embed, view_len, obj_len in zip(
                 traj_view_img_embeds, traj_obj_img_embeds, traj_vp_view_lens, traj_vp_obj_lens
@@ -523,7 +625,9 @@ class ImageEmbeddings(nn.Module):
         split_traj_embeds = torch.split(traj_embeds, traj_step_lens, 0)
         split_traj_vp_lens = torch.split(traj_vp_lens, traj_step_lens, 0)
         return split_traj_embeds, split_traj_vp_lens
-        
+
+
+
 class LocalVPEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -531,7 +635,8 @@ class LocalVPEncoder(nn.Module):
             nn.Linear(config.angle_feat_size*2 + 6, config.hidden_size),
             BertLayerNorm(config.hidden_size, eps=1e-12)
         )
-        self.encoder = CrossmodalEncoder(config)
+        # self.encoder = CrossmodalEncoder(config)
+        self.encoder = CrossEncoder(config)
 
     def vp_input_embedding(self, split_traj_embeds, split_traj_vp_lens, vp_pos_fts):
         vp_img_embeds = pad_tensors_wgrad([x[-1] for x in split_traj_embeds])
@@ -549,13 +654,22 @@ class LocalVPEncoder(nn.Module):
 
         return vp_embeds, vp_masks
 
+    # def forward(
+    #     self, txt_embeds, txt_masks, split_traj_embeds, split_traj_vp_lens, vp_pos_fts
+    # ):
+    #     vp_embeds, vp_masks = self.vp_input_embedding(
+    #         split_traj_embeds, split_traj_vp_lens, vp_pos_fts
+    #     )
+    #     vp_embeds = self.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks) # memo: 尤度を計算してると思う
+    #     return vp_embeds
+
     def forward(
-        self, txt_embeds, txt_masks, split_traj_embeds, split_traj_vp_lens, vp_pos_fts
+        self, txt_embeds, txt_masks, gmap_embeds,  gmap_masks, split_traj_embeds, split_traj_vp_lens, vp_pos_fts
     ):
         vp_embeds, vp_masks = self.vp_input_embedding(
             split_traj_embeds, split_traj_vp_lens, vp_pos_fts
         )
-        vp_embeds = self.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks) # memo: 尤度を計算してると思う
+        vp_embeds = self.encoder(txt_embeds, txt_masks, gmap_embeds, gmap_masks, vp_embeds, vp_masks) # memo: 尤度を計算してると思う
         return vp_embeds
 
 class GlobalMapEncoder(nn.Module):
@@ -695,12 +809,16 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
                 v.requires_grad = False
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
+
+
+        self.fuse_att = BertAttention(config)
+        self.heads = config.num_attention_heads
     
     def forward_text(self, txt_ids, txt_masks):
         txt_token_type_ids = torch.zeros_like(txt_ids)
         txt_embeds = self.embeddings(txt_ids, token_type_ids=txt_token_type_ids)
         txt_embeds = self.lang_encoder(txt_embeds, txt_masks)
-        return txt_embeds
+        return txt_embeds   
 
     def forward_panorama_per_step(
         self, view_img_fts, obj_img_fts, loc_fts, nav_types, view_lens, obj_lens
@@ -755,65 +873,72 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
     ):
         batch_size = txt_embeds.size(0)
 
-        # global branch
+        # global branch & local branch
         gmap_embeds = gmap_img_embeds + \
                       self.global_encoder.gmap_step_embeddings(gmap_step_ids) + \
                       self.global_encoder.gmap_pos_embeddings(gmap_pos_fts)
 
-        if self.global_encoder.sprel_linear is not None:
-            graph_sprels = self.global_encoder.sprel_linear(
-                gmap_pair_dists.unsqueeze(3)).squeeze(3).unsqueeze(1)
-        else:
-            graph_sprels = None
-
-        gmap_embeds = self.global_encoder.encoder(
-            txt_embeds, txt_masks, gmap_embeds, gmap_masks,
-            graph_sprels=graph_sprels
-        )
-       
-        # local branch
+        # if self.global_encoder.sprel_linear is not None:
+        #     graph_sprels = self.global_encoder.sprel_linear(
+        #         gmap_pair_dists.unsqueeze(3)).squeeze(3).unsqueeze(1)
+        # else:
+        #     graph_sprels = None
+        
         vp_embeds = vp_img_embeds + self.local_encoder.vp_pos_embeddings(vp_pos_fts)
-        vp_embeds = self.local_encoder.encoder(txt_embeds, txt_masks, vp_embeds, vp_masks)
-            
+       
+        gmap_embeds, vp_embeds = self.local_encoder.encoder(txt_embeds, txt_masks, gmap_embeds,  gmap_masks, vp_embeds, vp_masks)
+
         # navigation logits
         # memo: ナビゲーション 尤度 発見！
-        if self.sap_fuse_linear is None:
-            fuse_weights = 0.5
-        else:
-            fuse_weights = torch.sigmoid(self.sap_fuse_linear(
-                torch.cat([gmap_embeds[:, 0], vp_embeds[:, 0]], 1)
-            ))
-        # print(fuse_weights)
+        # if self.sap_fuse_linear is None:
+        #     fuse_weights = 0.5
+        # else:
+        fuse_weights = torch.sigmoid(self.sap_fuse_linear(
+            torch.cat([gmap_embeds[:, 0], vp_embeds[:, 0]], 1)
+        ))
+
+        fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
+        device = fuse_emb.device
+        fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
+        # print(gmap_embeds.size()[1])
+        size = int(gmap_embeds.size()[1])
+        fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
+        # print(fuse_feat.size())
+        fuse_feat = fuse_feat[:, :size, :]
+        fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
+        fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
+        fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
+
 
         global_logits = self.global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
         global_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         global_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
-        # memo: 尤度！
-        # print('global', torch.softmax(global_logits, 1)[0], global_logits[0])
 
         local_logits = self.local_sap_head(vp_embeds).squeeze(2) * (1 - fuse_weights)
         local_logits.masked_fill_(vp_nav_masks.logical_not(), -float('inf'))
-        # print('local', torch.softmax(local_logits, 1)[0], local_logits[0])
+
 
         # fusion
-        fused_logits = torch.clone(global_logits)
-        fused_logits[:, 0] += local_logits[:, 0]   # stop
-        for i in range(batch_size):
-            visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
-            tmp = {}
-            bw_logits = 0
-            for j, cand_vpid in enumerate(vp_cand_vpids[i]):
-                if j > 0:
-                    if cand_vpid in visited_nodes:
-                        bw_logits += local_logits[i, j]
-                    else:
-                        tmp[cand_vpid] = local_logits[i, j]
-            for j, vp in enumerate(gmap_vpids[i]):
-                if j > 0 and vp not in visited_nodes:
-                    if vp in tmp:
-                        fused_logits[i, j] += tmp[vp]
-                    else:
-                        fused_logits[i, j] += bw_logits
+        # fused_logits = torch.clone(global_logits)
+        # fused_logits[:, 0] += local_logits[:, 0]   # stop
+        # for i in range(batch_size):
+        #     visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
+        #     tmp = {}
+        #     bw_logits = 0
+        #     for j, cand_vpid in enumerate(vp_cand_vpids[i]):
+        #         if j > 0:
+        #             if cand_vpid in visited_nodes:
+        #                 # back_scoreに足す
+        #                 bw_logits += local_logits[i, j]
+        #             else:
+        #                 # s_i^f
+        #                 tmp[cand_vpid] = local_logits[i, j]
+        #     for j, vp in enumerate(gmap_vpids[i]):
+        #         if j > 0 and vp not in visited_nodes:
+        #             if vp in tmp:
+        #                 fused_logits[i, j] += tmp[vp]
+        #             else:
+        #                 fused_logits[i, j] += bw_logits
         # print('fused', torch.softmax(fused_logits, 1)[0], fused_logits[0])
 
         # object grounding logits
@@ -853,6 +978,3 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
                 batch['vp_img_embeds'], batch['vp_pos_fts'], batch['vp_masks'],
                 batch['vp_nav_masks'], batch['vp_obj_masks'], batch['vp_cand_vpids'],
             )
-
-            
-       
