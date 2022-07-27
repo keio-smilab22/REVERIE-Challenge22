@@ -115,7 +115,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
         batch_no_vp_left = []
         for i, gmap in enumerate(gmaps):
             visited_vpids, unvisited_vpids = [], []
-            for k in gmap.node_positions.keys():
+            # for k in gmap.node_positions.keys():
+            for k in gmap.node_reldist.keys():
                 if gmap.graph.visited(k):
                     visited_vpids.append(k)
                 else:

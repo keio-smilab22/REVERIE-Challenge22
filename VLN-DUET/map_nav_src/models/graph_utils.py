@@ -115,6 +115,9 @@ class GraphMap(object):
 
     def update_graph(self, ob):
         # self.node_positions[ob['viewpoint']] = ob['position']
+        self.node_heading[ob['viewpoint']] = ob['heading']
+        self.node_elevation[ob['viewpoint']] = ob['elevation']
+        self.node_reldist[ob['viewpoint']] = ob['rel_dist']      
         for cc in ob['candidate']:
             # self.node_positions[cc['viewpointId']] = cc['position']
             # dist = calc_position_distance(ob['position'], cc['position'])
