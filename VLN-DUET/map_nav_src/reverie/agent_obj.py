@@ -135,7 +135,7 @@ class GMapObjectNavAgent(Seq2SeqAgent):
             )   # cuda
 
             gmap_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], gmap_vpids, obs[i]['heading'], obs[i]['elevation'],
+                obs[i]['viewpoint'], gmap_vpids
             )
 
             gmap_pair_dists = np.zeros((len(gmap_vpids), len(gmap_vpids)), dtype=np.float32)
@@ -185,12 +185,10 @@ class GMapObjectNavAgent(Seq2SeqAgent):
         batch_vp_pos_fts = []
         for i, gmap in enumerate(gmaps):
             cur_cand_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], cand_vpids[i], 
-                obs[i]['heading'], obs[i]['elevation']
+                obs[i]['viewpoint'], cand_vpids[i]
             )
             cur_start_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], [gmap.start_vp], 
-                obs[i]['heading'], obs[i]['elevation']
+                obs[i]['viewpoint'], [gmap.start_vp]
             )                    
             # add [stop] token at beginning
             vp_pos_fts = np.zeros((vp_img_embeds.size(1), 14), dtype=np.float32)

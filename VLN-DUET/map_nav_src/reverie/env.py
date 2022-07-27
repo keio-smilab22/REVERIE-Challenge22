@@ -281,14 +281,17 @@ class ReverieObjectNavBatch(object):
                             'distance': distance,
                             'idx': j + 1,
                             'feature': np.concatenate((visual_feat, angle_feat), -1),
-                            'position': (loc.x, loc.y, loc.z),
+                            # 'position': (loc.x, loc.y, loc.z),
+                            'rel_dist': loc.rel_distance
                         }
             candidate = list(adj_dict.values())
             self.buffered_state_dict[long_id] = [
                 {key: c[key]
                  for key in
+                    # ['normalized_heading', 'normalized_elevation', 'scanId', 'viewpointId',
+                    #  'pointId', 'idx', 'position']}
                     ['normalized_heading', 'normalized_elevation', 'scanId', 'viewpointId',
-                     'pointId', 'idx', 'position']}
+                     'pointId', 'idx', 'rel_dist']}
                 for c in candidate
             ]
 
@@ -379,7 +382,8 @@ class ReverieObjectNavBatch(object):
                 'scan' : state.scanId,
                 'viewpoint' : state.location.viewpointId,
                 'viewIndex' : state.viewIndex,
-                'position': (state.location.x, state.location.y, state.location.z),
+                # 'position': (state.location.x, state.location.y, state.location.z),
+                'rel_dist': state.location.rel_distance,
                 'heading' : state.heading,
                 'elevation' : state.elevation,
                 'feature' : feature,

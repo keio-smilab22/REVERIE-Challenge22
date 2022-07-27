@@ -219,9 +219,9 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
 
                 # select model by spl
                 if env_name in best_val:
-                    if score_summary['spl'] >= best_val[env_name]['spl']:
+                    if score_summary['rgspl'] >= best_val[env_name]['rgspl']:
+                        best_val[env_name]['rgspl'] = score_summary['rgspl']
                         best_val[env_name]['spl'] = score_summary['spl']
-                        best_val[env_name]['sr'] = score_summary['sr']
                         best_val[env_name]['state'] = 'Iter %d %s' % (iter, loss_str)
                         listner.save(idx, os.path.join(args.ckpt_dir, "best_%s" % (env_name)))
                 
