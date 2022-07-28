@@ -100,4 +100,3 @@ def get_point_angle_feature(sim, angle_feat_size, baseViewId=0):
 
 def get_all_point_angle_feature(sim, angle_feat_size):
     return [get_point_angle_feature(sim, angle_feat_size, baseViewId) for baseViewId in range(36)]
-

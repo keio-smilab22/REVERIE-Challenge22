@@ -31,7 +31,7 @@ def build_dataset(args, rank=0):
     feat_db = ImageFeaturesDB(args.img_ft_file, args.image_feat_size)
     obj_db = ObjectFeatureDB(args.obj_ft_file, args.obj_feat_size)
     # obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes.json'))
-    obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes_v2.json'))
+    obj2vps, bboxes = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes_v2.json'))
 
     dataset_class = ReverieObjectNavBatch
 
@@ -142,7 +142,7 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
             '\nListener training starts, start iteration: %s' % str(start_iter), record_file
         )
 
-    best_val = {'val_unseen': {"spl": 0., "sr": 0., "state":""}}
+    best_val = {'val_unseen': {"spl": 0., "rgspl": 0., "state":""}}
 
     for idx in range(start_iter, start_iter+args.iters, args.log_every):
         listner.logs = defaultdict(list)
@@ -219,7 +219,7 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
 
                 # select model by spl
                 if env_name in best_val:
-                    if score_summary['rgspl'] >= best_val[env_name]['rgspl']:
+                    if score_summary['spl'] >= best_val[env_name]['spl']:
                         best_val[env_name]['rgspl'] = score_summary['rgspl']
                         best_val[env_name]['spl'] = score_summary['spl']
                         best_val[env_name]['state'] = 'Iter %d %s' % (iter, loss_str)
