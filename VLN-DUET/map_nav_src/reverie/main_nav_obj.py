@@ -31,7 +31,7 @@ def build_dataset(args, rank=0):
     feat_db = ImageFeaturesDB(args.img_ft_file, args.image_feat_size)
     obj_db = ObjectFeatureDB(args.obj_ft_file, args.obj_feat_size)
     # obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes.json'))
-    obj2vps = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes_v2.json'))
+    obj2vps, bboxes = load_obj2vps(os.path.join(args.anno_dir, 'BBoxes_v2.json'))
 
     dataset_class = ReverieObjectNavBatch
 

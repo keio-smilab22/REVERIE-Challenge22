@@ -94,7 +94,7 @@ def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
     return data
 
 def load_obj2vps(bbox_file):
-    obj2vps = {}
+    obj2vps, bboxes = {}, {}
     bbox_data = json.load(open(bbox_file))
     for scanvp, value in bbox_data.items():
         scan, vp = scanvp.split('_')
@@ -104,4 +104,7 @@ def load_obj2vps(bbox_file):
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
-    return obj2vps
+                for i, pos in enumerate(objinfo['visible_pos']):
+                    bboxes.setdefault(f"{scan}_{vp}_{str(pos)}", [])
+                    bboxes[f"{scan}_{vp}_{str(pos)}"].append((objid, objinfo['bbox2d'][i]))
+    return obj2vps, bboxes
