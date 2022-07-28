@@ -41,7 +41,10 @@ class Preprocess:
     def get_feats(self, scanId, viewpointId):
         detected_images = []
         visual_feats = []
-        objects = {}
+        obj_ids = []
+        _obj_ids = set()
+        obj_sizes = []
+        obj_directions = []
         for ix in range(36):
             if ix == 0:
                 self.sim.newEpisode([scanId], [viewpointId], [0], [math.radians(-30)])
@@ -60,10 +63,6 @@ class Preprocess:
             visual_feat = clip_visual_feat.detach().cpu().numpy()
             visual_feats.append(visual_feat)
 
-            obj_ids = []
-            _obj_ids = set()
-            obj_sizes = []
-            obj_directions = []
             if self.visualize and rgb.sum() > 1:
                 cv.imwrite("rendering.png", rgb)
                 cv.imshow('rendering', rgb)
@@ -122,21 +121,19 @@ def main():
         key = f"{scanId}_{viewpointId}"
         img_feats, objs, obj_directions, obj_sizes, obj_ids = preprocess.get_feats(scanId, viewpointId)
         if len(objs) == 0:
-            objs = np.zeros((0,768))
+            objs = np.zeros((0, 768))
 
         with h5py.File(args.view_file, 'a') as f:
-            data = f.create_dataset(key, data=np.array(img_feats,dtype=np.float64))
+            data = f.create_dataset(key, data=np.array(img_feats, dtype=np.float64))
 
         with h5py.File(args.obj_file, 'a') as f:
-            data = f.create_dataset(key, data=np.array(objs,dtype=np.float64))
-            data.attrs['directions'] = np.array(obj_directions,dtype=np.float64)
-            data.attrs['sizes'] = np.array(obj_sizes,dtype=np.int64)
-            data.attrs['obj_ids'] = np.array(obj_ids,dtype=np.int64)
+            data = f.create_dataset(key, data=np.array(objs, dtype=np.float64))
+            data.attrs['directions'] = np.array(obj_directions, dtype=np.float64)
+            data.attrs['sizes'] = np.array(obj_sizes, dtype=np.int64)
+            data.attrs['obj_ids'] = np.array(obj_ids, dtype=np.int64)
 
         # print(key)
-        # print(np.array(img_feats,dtype=np.float64).shape,np.array(objs,dtype=np.float64).shape)
-
-        
+        # print(np.array(img_feats, dtype=np.float64).shape, np.array(objs, dtype=np.float64).shape)
 
 
 if __name__ == "__main__":
