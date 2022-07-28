@@ -22,6 +22,8 @@ from .agent_base import Seq2SeqAgent
 from models.graph_utils import GraphMap
 from models.model import VLNBert, Critic
 from models.ops import pad_tensors_wgrad
+import clip
+from torchinfo import summary
 
 
 class GMapObjectNavAgent(Seq2SeqAgent):
@@ -113,7 +115,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
         batch_no_vp_left = []
         for i, gmap in enumerate(gmaps):
             visited_vpids, unvisited_vpids = [], []
-            for k in gmap.node_positions.keys():
+            # for k in gmap.node_positions.keys():
+            for k in gmap.node_reldist.keys():
                 if gmap.graph.visited(k):
                     visited_vpids.append(k)
                 else:
@@ -133,7 +136,7 @@ class GMapObjectNavAgent(Seq2SeqAgent):
             )   # cuda
 
             gmap_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], gmap_vpids, obs[i]['heading'], obs[i]['elevation'],
+                obs[i]['viewpoint'], gmap_vpids
             )
 
             gmap_pair_dists = np.zeros((len(gmap_vpids), len(gmap_vpids)), dtype=np.float32)
@@ -183,12 +186,10 @@ class GMapObjectNavAgent(Seq2SeqAgent):
         batch_vp_pos_fts = []
         for i, gmap in enumerate(gmaps):
             cur_cand_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], cand_vpids[i], 
-                obs[i]['heading'], obs[i]['elevation']
+                obs[i]['viewpoint'], cand_vpids[i]
             )
             cur_start_pos_fts = gmap.get_pos_fts(
-                obs[i]['viewpoint'], [gmap.start_vp], 
-                obs[i]['heading'], obs[i]['elevation']
+                obs[i]['viewpoint'], [gmap.start_vp]
             )                    
             # add [stop] token at beginning
             vp_pos_fts = np.zeros((vp_img_embeds.size(1), 14), dtype=np.float32)
@@ -312,6 +313,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
 
         # Language input: txt_ids, txt_masks
         language_inputs = self._language_variable(obs)
+        # print(summary(self.vln_bert))
+        # sys.exit()
         txt_embeds = self.vln_bert('language', language_inputs)
     
         # Initialization the tracking state
@@ -385,9 +388,22 @@ class GMapObjectNavAgent(Seq2SeqAgent):
                         'og': i_objids[torch.argmax(i_obj_logits)] if len(i_objids) > 0 else None,
                         'og_details': {'objids': i_objids, 'logits': i_obj_logits[:len(i_objids)]},
                     }
+            # for i, gmap in enumerate(gmaps):
+            #     if not ended[i]:
+            #         i_vp = obs[i]['viewpoint']
+            #         # update i_vp: stop and object grounding scores
+            #         i_objids = obs[i]['obj_ids']
+            #         i_obj_logits = obj_logits[i, pano_inputs['view_lens'][i]+1:]
+            #         gmap.node_clip[i_vp] = np.mean(obs[i]['clip_feat'])
+            #         gmap.node_stop_scores[i_vp] = {
+            #             'stop': nav_probs[i, 0].data.item() * gmap.node_clip[i_vp], # memo: とりあえずstop_scoreをclip特徴で重み付けしてみた
+            #             'og': i_objids[torch.argmax(i_obj_logits)] if len(i_objids) > 0 else None,
+            #             'og_details': {'objids': i_objids, 'logits': i_obj_logits[:len(i_objids)]},
+            #         }
                                         
             if train_ml is not None:
                 # Supervised training
+                # train_ml += clip_loss
                 nav_targets = self._teacher_action(
                     obs, nav_vpids, ended, 
                     visited_masks=nav_inputs['gmap_visited_masks'] if self.args.fusion != 'local' else None

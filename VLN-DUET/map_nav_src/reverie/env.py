@@ -2,15 +2,20 @@
 
 import json
 import os
+import torch
 import numpy as np
+import cv2 as cv
 import math
 import random
 import networkx as nx
 from collections import defaultdict
 import copy
 import wandb
+from PIL import Image
 
 import MatterSim
+import clip
+import nltk
 
 from utils.data import load_nav_graphs, new_simulator
 from utils.data import angle_feature, get_all_point_angle_feature
@@ -35,15 +40,14 @@ class EnvBatch(object):
         self.sims = []
         for i in range(batch_size):
             sim = MatterSim.Simulator()
-            if scan_data_dir:
-                sim.setDatasetPath(scan_data_dir)
+            sim.setDatasetPath(scan_data_dir)
             sim.setNavGraphPath(connectivity_dir)
             sim.setRenderingEnabled(False)
             sim.setDiscretizedViewingAngles(True)   # Set increment/decrement to 30 degree. (otherwise by radians)
             sim.setCameraResolution(self.image_w, self.image_h)
             sim.setCameraVFOV(math.radians(self.vfov))
             sim.setBatchSize(1)
-            sim.initialize()
+            # sim.initialize()
             self.sims.append(sim)
 
     def _make_id(self, scanId, viewpointId):
@@ -53,7 +57,7 @@ class EnvBatch(object):
         for i, (scanId, viewpointId, heading) in enumerate(zip(scanIds, viewpointIds, headings)):
             self.sims[i].newEpisode([scanId], [viewpointId], [heading], [0])
 
-    def getStates(self):
+    def getStates(self): # memo: 各Viewごとの事前学習済み特徴量を返す
         """
         Get list of states augmented with precomputed image features. rgb field will be empty.
         Agent's current view [0-35] (set only when viewing angles are discretized)
@@ -61,9 +65,9 @@ class EnvBatch(object):
         :return: [ ((36, 2048), sim_state) ] * batch_size
         """
         feature_states = []
-        for i, sim in enumerate(self.sims):
+        for i, sim in enumerate(self.sims): # memo: sim はバッチサイズ分存在する
             state = sim.getState()[0]
-
+            # print("sim",state)
             feature = self.feat_db.get_image_feature(state.scanId, state.location.viewpointId)
             feature_states.append((feature, state))
         return feature_states
@@ -81,20 +85,24 @@ class ReverieObjectNavBatch(object):
     def __init__(
         self, view_db, obj_db, instr_data, connectivity_dir, obj2vps, 
         multi_endpoints=False, multi_startpoints=False,
-        batch_size=64, angle_feat_size=4, max_objects=None, seed=0, name=None, sel_data_idxs=None,
+        batch_size=64, angle_feat_size=4, max_objects=None, seed=0, name=None, sel_data_idxs=None, bboxes=None,
+        visualize = False, 
     ):
-        self.env = EnvBatch(connectivity_dir, feat_db=view_db, batch_size=batch_size)
+        self.env = EnvBatch(connectivity_dir, scan_data_dir="./data/v1/scans", feat_db=view_db, batch_size=batch_size)
         self.obj_db = obj_db
         self.data = instr_data
         self.scans = set([x['scan'] for x in self.data])
         self.multi_endpoints = multi_endpoints
         self.multi_startpoints = multi_startpoints
+        # memo: 物体検出する必要はない？viewpointから見えるオブジェクトが渡されるらしい？？
         self.obj2vps = obj2vps  # {scan_objid: vp_list} (objects can be viewed at the viewpoints)
         self.connectivity_dir = connectivity_dir
         self.batch_size = batch_size
         self.angle_feat_size = angle_feat_size
         self.max_objects = max_objects
         self.name = name
+        self.bboxes = bboxes
+        self.visualize = visualize
 
         for item in self.data:
             if 'objId' in item and item['objId'] is not None:
@@ -121,12 +129,17 @@ class ReverieObjectNavBatch(object):
         self.ix = 0
         self._load_nav_graphs()
 
-        self.sim = new_simulator(self.connectivity_dir)
+        self.sim = new_simulator(self.connectivity_dir,scan_data_dir="./data/v1/scans")
         self.angle_feature = get_all_point_angle_feature(self.sim, self.angle_feat_size)
         
         self.buffered_state_dict = {}
         print('%s loaded with %d instructions, using splits: %s' % (
             self.__class__.__name__, len(self.data), self.name))
+
+        # model, preprocess = clip.load("ViT-B/32", device="cuda")
+        # self.clip = model
+        # self.clip_preprocess = preprocess
+        # self.input_resolution = model.visual.input_resolution
 
     def _get_gt_trajs(self, data):
         gt_trajs = {
@@ -201,7 +214,7 @@ class ReverieObjectNavBatch(object):
             random.shuffle(self.data)
         self.ix = 0
 
-    def make_candidate(self, feature, scanId, viewpointId, viewId):
+    def make_candidate(self, feature, scanId, viewpointId, viewId, instruction):
         def _loc_distance(loc):
             return np.sqrt(loc.rel_heading ** 2 + loc.rel_elevation ** 2)
         base_heading = (viewId % 12) * math.radians(30)
@@ -209,6 +222,7 @@ class ReverieObjectNavBatch(object):
 
         adj_dict = {}
         long_id = "%s_%s" % (scanId, viewpointId)
+        detected_images = []
         if long_id not in self.buffered_state_dict:
             for ix in range(36):
                 if ix == 0:
@@ -226,6 +240,23 @@ class ReverieObjectNavBatch(object):
                 elevation = state.elevation - base_elevation
 
                 visual_feat = feature[ix]
+
+                # rgb = np.array(state.rgb, copy=True)
+                # if self.visualize and rgb.sum() > 1:
+                #     cv.imwrite("rendering.png", rgb)
+                #     cv.imshow('rendering', rgb)
+                #     cv.waitKey(50)
+
+                # key = f"{scanId}_{viewpointId}_{state.viewIndex}"
+                # if key in self.bboxes:
+                #     for name, bbox in self.bboxes[key]:
+                #         x, y, w, h = bbox
+                #         img = rgb[y:y+h, x:x+w, :]
+                #         img_processed = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).cuda()
+                #         detected_images.append(img_processed)
+                #         if self.visualize:
+                #             cv.imshow("f{name}",img)
+                #             cv.waitKey(50)
 
                 # get adjacent locations
                 for j, loc in enumerate(state.navigableLocations[1:]):
@@ -250,16 +281,20 @@ class ReverieObjectNavBatch(object):
                             'distance': distance,
                             'idx': j + 1,
                             'feature': np.concatenate((visual_feat, angle_feat), -1),
-                            'position': (loc.x, loc.y, loc.z),
+                            # 'position': (loc.x, loc.y, loc.z),
+                            'rel_dist': loc.rel_distance
                         }
             candidate = list(adj_dict.values())
             self.buffered_state_dict[long_id] = [
                 {key: c[key]
                  for key in
+                    # ['normalized_heading', 'normalized_elevation', 'scanId', 'viewpointId',
+                    #  'pointId', 'idx', 'position']}
                     ['normalized_heading', 'normalized_elevation', 'scanId', 'viewpointId',
-                     'pointId', 'idx', 'position']}
+                     'pointId', 'idx', 'rel_dist']}
                 for c in candidate
             ]
+
             return candidate
         else:
             candidate = self.buffered_state_dict[long_id]
@@ -277,6 +312,12 @@ class ReverieObjectNavBatch(object):
                 candidate_new.append(c_new)
             return candidate_new
 
+    # def _get_nouns(self,text):
+    #     pos_tagged_sent = nltk.pos_tag(nltk.tokenize.word_tokenize(text))
+    #     nouns = set([tag[0] for tag in pos_tagged_sent if tag[1]=='NN'])
+    #     return nouns
+
+
     def _get_obs(self):
         obs = []
         for i, (feature, state) in enumerate(self.env.getStates()):
@@ -284,7 +325,8 @@ class ReverieObjectNavBatch(object):
             base_view_id = state.viewIndex
            
             # Full features
-            candidate = self.make_candidate(feature, state.scanId, state.location.viewpointId, state.viewIndex)
+            # memo: candidateはここに収納されている
+            candidate = self.make_candidate(feature, state.scanId, state.location.viewpointId, state.viewIndex,item['instruction'])
             # [visual_feature, angle_feature] for views
             feature = np.concatenate((feature, self.angle_feature[base_view_id]), -1)
 
@@ -294,13 +336,54 @@ class ReverieObjectNavBatch(object):
                 state.heading, state.elevation, self.angle_feat_size,
                 max_objects=self.max_objects
             )
+            
+            # clip_feat = 0
+            # if "nouns" not in item:
+            #     item["nouns"] = self._get_nouns(item['instruction'])
+            #     # print("> instruction:", item['instruction'])
+            #     # print("> nouns:", item['nouns'])
+            #     if len(item["nouns"]) == 0:
+            #         item["nouns"] = set(item['instruction'])
 
-            ob = {
+            # text = clip.tokenize(item["instruction"]).cuda()
+            # cube_imgs = []
+            # for j in range(4):
+            #     path = f"../../Matterport3DSimulator/data/data/v1/scans/{state.scanId}/matterport_skybox_images/{state.location.viewpointId}_skybox{j+1}_sami.jpg"
+            #     assert os.path.exists(path)
+            #     r = self.input_resolution
+                # path_res = f"../../Matterport3DSimulator/data/data/v1/scans/{state.scanId}/matterport_skybox_images/{state.location.viewpointId}_skybox{j+1}_sami_{r}.jpg"
+                # if not os.path.exists(path_res):
+                #     img = cv.imread(path)
+                #     img = cv.resize(img,(r,r))
+                #     ret = cv.imwrite(path_res,img)
+                #     # assert ret
+                #     print(path_res)
+                # else:
+                #     img = cv.imread(path_res)
+                
+                # img = cv.imread(path)
+                # img = cv.resize(img,(r,r))
+                # img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+                # img = Image.fromarray(img)
+                # img = self.clip_preprocess(img).unsqueeze(0).cuda()
+                # cube_imgs.append(img)
+
+            # images = torch.cat(cube_imgs, dim=0)
+            # with torch.no_grad():
+            #     image_features = self.clip.encode_image(images)
+            #     text_features = self.clip.encode_text(text)
+            #     logits_per_image, logits_per_text = self.clip(images, text)
+            #     clip_feat = logits_per_image.detach().cpu().numpy().flatten()
+            # clip_feat = images.cpu().numpy()
+                
+
+            ob = { # memo: ここにCLIP特徴に必要なパノラマ画像をぶっこむ
                 'instr_id' : item['instr_id'],
                 'scan' : state.scanId,
                 'viewpoint' : state.location.viewpointId,
                 'viewIndex' : state.viewIndex,
-                'position': (state.location.x, state.location.y, state.location.z),
+                # 'position': (state.location.x, state.location.y, state.location.z),
+                'rel_dist': state.location.rel_distance,
                 'heading' : state.heading,
                 'elevation' : state.elevation,
                 'feature' : feature,
@@ -310,6 +393,7 @@ class ReverieObjectNavBatch(object):
                 'obj_box_fts': obj_box_fts,
                 'obj_ids': obj_ids,
                 'navigableLocations' : state.navigableLocations,
+                # 'clip_feat': clip_feat,
                 'instruction' : item['instruction'],
                 'instr_encoding': item['instr_encoding'],
                 'gt_path' : item['path'],
@@ -328,7 +412,6 @@ class ReverieObjectNavBatch(object):
                     except:
                         print(ob['scan'], ob['viewpoint'], vp)
                         exit(0)
-                        # min_dist = np.inf
                 ob['distance'] = min_dist
             else:
                 ob['distance'] = 0
@@ -349,6 +432,7 @@ class ReverieObjectNavBatch(object):
     def step(self, actions):
         ''' Take action (same interface as makeActions) '''
         self.env.makeActions(actions)
+        assert False
         return self._get_obs()
 
 
@@ -405,4 +489,3 @@ class ReverieObjectNavBatch(object):
             'rgspl': np.mean(metrics['rgspl']) * 100,
         }
         return avg_metrics, metrics
-

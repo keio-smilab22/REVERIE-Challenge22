@@ -1,3 +1,5 @@
+
+
 import json
 import os
 import sys
@@ -260,5 +262,3 @@ class Seq2SeqAgent(BaseAgent):
         for param in all_tuple:
             recover_state(*param)
         return states['vln_bert']['epoch'] - 1
-
-

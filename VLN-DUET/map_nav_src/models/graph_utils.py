@@ -12,24 +12,30 @@ def calc_position_distance(a, b):
     dist = np.sqrt(dx**2 + dy**2 + dz**2)
     return dist
 
-def calculate_vp_rel_pos_fts(a, b, base_heading=0, base_elevation=0):
-    # a, b: (x, y, z)
-    dx = b[0] - a[0]
-    dy = b[1] - a[1]
-    dz = b[2] - a[2]
-    xy_dist = max(np.sqrt(dx**2 + dy**2), 1e-8)
-    xyz_dist = max(np.sqrt(dx**2 + dy**2 + dz**2), 1e-8)
+# def calculate_vp_rel_pos_fts(a, b, base_heading=0, base_elevation=0):
+#     # a, b: (x, y, z)
+#     dx = b[0] - a[0]
+#     dy = b[1] - a[1]
+#     dz = b[2] - a[2]
+#     xy_dist = max(np.sqrt(dx**2 + dy**2), 1e-8)
+#     # xyz_dist = max(np.sqrt(dx**2 + dy**2 + dz**2), 1e-8)
 
-    # the simulator's api is weired (x-y axis is transposed)
-    heading = np.arcsin(dx/xy_dist) # [-pi/2, pi/2]
-    if b[1] < a[1]:
-        heading = np.pi - heading
-    heading -= base_heading
+#     # the simulator's api is weired (x-y axis is transposed)
+#     heading = np.arcsin(dx/xy_dist) # [-pi/2, pi/2]
+#     if b[1] < a[1]:
+#         heading = np.pi - heading
+#     heading -= base_heading
 
-    elevation = np.arcsin(dz/xyz_dist)  # [-pi/2, pi/2]
-    elevation -= base_elevation
+#     elevation = np.arcsin(dz/xyz_dist)  # [-pi/2, pi/2]
+#     elevation -= base_elevation
 
-    return heading, elevation, xyz_dist
+#     return heading, elevation, xyz_dist
+
+
+def calculate_vp_rel_pos_fts(b_heading, b_elevation, a_heading, a_elevation):
+    heading = b_heading - a_heading
+    elevation = b_elevation - a_elevation
+    return heading, elevation
 
 def get_angle_fts(headings, elevations, angle_feat_size):
     ang_fts = [np.sin(headings), np.cos(headings), np.sin(elevations), np.cos(elevations)]
@@ -96,19 +102,30 @@ class GraphMap(object):
     def __init__(self, start_vp):
         self.start_vp = start_vp    # start viewpoint
 
-        self.node_positions = {}             # viewpoint to position (x, y, z)
+        # self.node_positions = {}             # viewpoint to position (x, y, z)
         self.graph = FloydGraph()   # shortest path graph
         self.node_embeds = {}       # {viewpoint: feature (sum feature, count)}
         self.node_stop_scores = {}  # {viewpoint: prob}
         self.node_nav_scores = {}   # {viewpoint: {t: prob}}
+        self.node_clip = {}
         self.node_step_ids = {}
+        self.node_heading = {}
+        self.node_elevation = {}
+        self.node_reldist = {}
 
     def update_graph(self, ob):
-        self.node_positions[ob['viewpoint']] = ob['position']
+        # self.node_positions[ob['viewpoint']] = ob['position']
+        self.node_heading[ob['viewpoint']] = ob['heading']
+        self.node_elevation[ob['viewpoint']] = ob['elevation']
+        self.node_reldist[ob['viewpoint']] = ob['rel_dist']      
         for cc in ob['candidate']:
-            self.node_positions[cc['viewpointId']] = cc['position']
-            dist = calc_position_distance(ob['position'], cc['position'])
-            self.graph.add_edge(ob['viewpoint'], cc['viewpointId'], dist)
+            # self.node_positions[cc['viewpointId']] = cc['position']
+            # dist = calc_position_distance(ob['position'], cc['position'])
+            # self.graph.add_edge(ob['viewpoint'], cc['viewpointId'], dist)
+            self.graph.add_edge(ob['viewpoint'], cc['viewpointId'], cc['rel_dist'])
+            self.node_heading[cc['viewpointId']] = cc['heading']
+            self.node_elevation[cc['viewpointId']] = cc['elevation']
+            self.node_reldist[cc['viewpointId']] = cc['rel_dist']
         self.graph.update(ob['viewpoint'])
 
     def update_node_embed(self, vp, embed, rewrite=False):
@@ -124,7 +141,31 @@ class GraphMap(object):
     def get_node_embed(self, vp):
         return self.node_embeds[vp][0] / self.node_embeds[vp][1]
 
-    def get_pos_fts(self, cur_vp, gmap_vpids, cur_heading, cur_elevation, angle_feat_size=4):
+    # def get_pos_fts(self, cur_vp, gmap_vpids, cur_heading, cur_elevation, angle_feat_size=4):
+    #     # dim=7 (sin(heading), cos(heading), sin(elevation), cos(elevation),
+    #     #  line_dist, shortest_dist, shortest_step)
+    #     rel_angles, rel_dists = [], []
+    #     for vp in gmap_vpids:
+    #         if vp is None:
+    #             rel_angles.append([0, 0])
+    #             rel_dists.append([0, 0, 0])
+    #         else:
+                # rel_heading, rel_elevation, rel_dist = calculate_vp_rel_pos_fts(
+                #     self.node_positions[cur_vp], self.node_positions[vp],
+                #     base_heading=cur_heading, base_elevation=cur_elevation,
+                # )
+    #             rel_angles.append([rel_heading, rel_elevation])
+    #             rel_dists.append(
+    #                 [rel_dist / MAX_DIST, self.graph.distance(cur_vp, vp) / MAX_DIST, \
+    #                 len(self.graph.path(cur_vp, vp)) / MAX_STEP]
+    #             )
+    #     rel_angles = np.array(rel_angles).astype(np.float32)
+    #     rel_dists = np.array(rel_dists).astype(np.float32)
+    #     rel_ang_fts = get_angle_fts(rel_angles[:, 0], rel_angles[:, 1], angle_feat_size)
+    #     return np.concatenate([rel_ang_fts, rel_dists], 1)
+
+
+    def get_pos_fts(self, cur_vp, gmap_vpids, angle_feat_size=4):
         # dim=7 (sin(heading), cos(heading), sin(elevation), cos(elevation),
         #  line_dist, shortest_dist, shortest_step)
         rel_angles, rel_dists = [], []
@@ -133,10 +174,11 @@ class GraphMap(object):
                 rel_angles.append([0, 0])
                 rel_dists.append([0, 0, 0])
             else:
-                rel_heading, rel_elevation, rel_dist = calculate_vp_rel_pos_fts(
-                    self.node_positions[cur_vp], self.node_positions[vp],
-                    base_heading=cur_heading, base_elevation=cur_elevation,
+                rel_heading, rel_elevation = calculate_vp_rel_pos_fts(
+                    self.node_heading[cur_vp], self.node_elevation[cur_vp],
+                    self.node_heading[vp], self.node_elevation[vp]
                 )
+                rel_dist = abs(self.node_reldist[vp] - self.node_reldist[cur_vp])
                 rel_angles.append([rel_heading, rel_elevation])
                 rel_dists.append(
                     [rel_dist / MAX_DIST, self.graph.distance(cur_vp, vp) / MAX_DIST, \
@@ -166,6 +208,3 @@ class GraphMap(object):
                 edges.append((k, kk))
                 
         return {'nodes': nodes, 'edges': edges}
-    
-    
-    
