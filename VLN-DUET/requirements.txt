@@ -16,4 +16,5 @@ ftfy
 regex
 tqdm
 nltk
+torchinfo
 git+https://github.com/openai/CLIP.git
