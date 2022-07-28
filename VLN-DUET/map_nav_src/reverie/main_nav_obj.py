@@ -142,7 +142,7 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
             '\nListener training starts, start iteration: %s' % str(start_iter), record_file
         )
 
-    best_val = {'val_unseen': {"spl": 0., "sr": 0., "state":""}}
+    best_val = {'val_unseen': {"spl": 0., "rgspl": 0., "state":""}}
 
     for idx in range(start_iter, start_iter+args.iters, args.log_every):
         listner.logs = defaultdict(list)
