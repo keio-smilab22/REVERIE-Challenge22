@@ -121,13 +121,19 @@ def postprocess_args(args):
     ROOTDIR = args.root_dir
 
     # Setup input paths
+    # ft_file_map = {
+    #     'vitbase': 'pth_vit_base_patch16_224_imagenet.hdf5',
+    # }
     ft_file_map = {
-        'vitbase': 'pth_vit_base_patch16_224_imagenet.hdf5',
+        'vitbase': 'view.hdf5',
     }
     args.img_ft_file = os.path.join(ROOTDIR, 'R2R', 'features', ft_file_map[args.features])
 
+    # obj_ft_file_map = {
+    #     'vitbase': 'obj.avg.top3.min80_vit_base_patch16_224_imagenet.hdf5',
+    # }
     obj_ft_file_map = {
-        'vitbase': 'obj.avg.top3.min80_vit_base_patch16_224_imagenet.hdf5',
+        'vitbase': 'obj.hdf5',
     }
     args.obj_ft_file = os.path.join(ROOTDIR, 'REVERIE', 'features', obj_ft_file_map[args.obj_features])
     

@@ -1,5 +1,3 @@
-export PYTHONPATH=/root/mount/Matterport3DSimulator/build:/root/mount/VLN-DUET/map_nav_src
-
 DATA_ROOT=../datasets
 
 train_alg=dagger
@@ -13,7 +11,7 @@ ngpus=1
 seed=0
 
 name=${train_alg}-${features}
-name=${name}-seed.${seed} #-${ngpus}gpus
+name=${name}-seed.${seed}_ch1clip.2_100k #-${ngpus}gpus
 
 outdir=${DATA_ROOT}/REVERIE/exprs_map/finetune/${name}
 
@@ -43,7 +41,7 @@ flag="--root_dir ${DATA_ROOT}
 
       --batch_size 8
       --lr 1e-5
-      --iters 20000
+      --iters 100000
       --log_every 1000
       --optim adam
 
@@ -60,6 +58,9 @@ flag="--root_dir ${DATA_ROOT}
       
       --gamma 0.
       
+      --mat
+      --mat_step 4
+      --mat_loss_weight 1.5
       --wandb"
 
 # train
@@ -72,5 +73,6 @@ CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
 # test
 CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
-      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen \
+      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch1clip.2_100k/ckpts/best_val_unseen
       --test --submit
+      #--resume_file ../datasets/REVERIE/trained_models/best_val_unseen \
