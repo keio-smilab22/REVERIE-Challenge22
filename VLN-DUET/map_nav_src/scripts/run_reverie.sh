@@ -41,7 +41,7 @@ flag="--root_dir ${DATA_ROOT}
 
       --batch_size 8
       --lr 1e-5
-      --iters 100000
+      --iters 20000
       --log_every 1000
       --optim adam
 
@@ -71,8 +71,8 @@ CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       # --eval_first
 
 # test
-CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
-      --tokenizer bert \
-      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch1clip.2_100k/ckpts/best_val_unseen
-      --test --submit
-      #--resume_file ../datasets/REVERIE/trained_models/best_val_unseen \
+# CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
+#       --tokenizer bert \
+#       --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch1clip.2_100k/ckpts/best_val_unseen
+#       --test --submit
+#       #--resume_file ../datasets/REVERIE/trained_models/best_val_unseen \

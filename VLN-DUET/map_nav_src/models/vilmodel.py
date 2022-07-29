@@ -336,10 +336,10 @@ class BertOutAttention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
-        if attention_mask is not None:
+        # if attention_mask is not None:
             
-            attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
-            attention_scores = attention_scores + attention_mask
+        #     attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
+        #     attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
@@ -844,11 +844,17 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
             
             clip_text = clip.tokenize(batch["instructions"]).to("cuda")
             clip_text_features = self.clip_model.encode_text(clip_text)
-            clip_text_features = clip_text_features.unsqueeze(1)
+            clip_text_features = clip_text_features.unsqueeze(1).float()
             # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
-            txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
+            # txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
             
-            
+            clip_embeds = clip_text_features
+            for _ in range(txt_embeds.shape[1]-1):
+                clip_embeds = torch.cat((clip_embeds, clip_text_features), 1)
+            # print(clip_embeds.shape)
+            # sys.exit()
+            return clip_embeds
+
             # instructions = [inst.split(" ") for inst in batch["instructions"]]
             
             # instruction_clip = []
@@ -857,7 +863,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel):
             # # instruction_clip = torch.tensor(instruction_clip)
             # print(instructions, instruction_clip)
             # sys.exit()
-            return txt_embeds
+            # return txt_embeds
 
 
         elif mode == 'panorama':
