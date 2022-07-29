@@ -472,11 +472,14 @@ class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, lang_feats, own_feats, own_attention_mask
+        self, own_feats, own_attention_mask, lang_feats, lang_attention_mask
     ):      
         att_output = self.visual_attention(
-            lang_feats, own_feats, ctx_att_mask=own_attention_mask # Q, KV, KV_mask
+            own_feats, lang_feats, ctx_att_mask=lang_attention_mask # Q, KV, KV_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         return att_output
 
 class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（どちらもこれ使う）
@@ -499,11 +502,14 @@ class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, ano_att_output, own_att_output, own_attention_mask
+        self, own_att_output, own_attention_mask, ano_att_output, ano_attention_mask
     ):      
         att_output = self.cross_attention(
-            ano_att_output, own_att_output, ctx_att_mask=own_attention_mask
+            own_att_output, ano_att_output, ctx_att_mask=ano_attention_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         inter_output = self.visn_inter(att_output)
         output = self.visn_output(inter_output, att_output)
 
@@ -521,11 +527,11 @@ class CrossAttn(nn.Module):
     def forward(
         self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
     ):      
-        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
-        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
+        global_out = self.global_before(gmap_embeds, gmap_masks, lang_feats, lang_attention_mask)
+        local_out = self.local_before(img_embeds, img_masks, lang_feats, lang_attention_mask)
 
-        global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
-        local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
+        global_out = self.global_after(global_out, gmap_masks, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
+        local_out = self.local_after(local_out, img_masks, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
 
         return global_out, local_out
 
@@ -784,6 +790,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         self.global_encoder = GlobalMapEncoder(config)
 
         self.global_sap_head = ClsPrediction(self.config.hidden_size)
+        self.tmp_global_sap_head = ClsPrediction(self.config.hidden_size)
         self.local_sap_head = ClsPrediction(self.config.hidden_size)
         if config.glocal_fuse:
             self.sap_fuse_linear = ClsPrediction(self.config.hidden_size, input_size=self.config.hidden_size*2)
@@ -809,8 +816,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
                 v.requires_grad = False
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
-
-
+        
         self.fuse_att = BertAttention(config)
         self.heads = config.num_attention_heads
     
@@ -910,7 +916,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
 
 
-        global_logits = self.global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
+        global_logits = self.tmp_global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
         global_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         global_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
 
