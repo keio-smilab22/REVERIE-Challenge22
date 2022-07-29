@@ -502,11 +502,14 @@ class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, own_att_output, ano_att_output, ano_attention_mask
+        self, own_att_output, own_attention_mask, ano_att_output, ano_attention_mask
     ):      
         att_output = self.cross_attention(
             own_att_output, ano_att_output, ctx_att_mask=ano_attention_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         inter_output = self.visn_inter(att_output)
         output = self.visn_output(inter_output, att_output)
 
@@ -527,8 +530,8 @@ class CrossAttn(nn.Module):
         global_out = self.global_before(gmap_embeds, gmap_masks, lang_feats, lang_attention_mask)
         local_out = self.local_before(img_embeds, img_masks, lang_feats, lang_attention_mask)
 
-        global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
-        local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
+        global_out = self.global_after(global_out, gmap_masks, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
+        local_out = self.local_after(local_out, img_masks, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
 
         return global_out, local_out
 
