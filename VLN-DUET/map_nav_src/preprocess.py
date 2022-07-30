@@ -26,7 +26,7 @@ class Preprocess:
 
         self.ix = 0
         self.connectivity_dir = "../datasets/R2R/connectivity"
-        self.sim = new_simulator(self.connectivity_dir, scan_data_dir="./data/v1/scans")
+        self.sim = new_simulator(self.connectivity_dir, scan_data_dir="./data/v1/scans",setRenderingEnabled=True)
         self.bboxes = bboxes
 
         model, preprocess = clip.load("ViT-L/14", device="cuda")
@@ -57,6 +57,8 @@ class Preprocess:
             heading = state.heading
             elevation = state.elevation
 
+            assert state.viewIndex == ix
+
             rgb = np.array(state.rgb, copy=True)
             img_processed = self.clip_preprocess(Image.fromarray(rgb)).unsqueeze(0).cuda()
             clip_visual_feat = self.clip.encode_image(img_processed).squeeze(0)
@@ -75,10 +77,6 @@ class Preprocess:
                         continue
 
                     x, y, w, h = bbox
-                    mlef = x == 0 or y == 0
-                    mbtm = y + h == 480 or x + w == 640
-                    if mlef or mbtm:
-                        continue
                     img = rgb[y:y + h, x:x + w, :]
                     img_processed = self.clip_preprocess(Image.fromarray(img)).unsqueeze(0).cuda()
                     detected_clip = self.clip.encode_image(img_processed).squeeze(0)

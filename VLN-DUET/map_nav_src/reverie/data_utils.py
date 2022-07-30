@@ -11,6 +11,7 @@ class ObjectFeatureDB(object):
         self.obj_feat_size = obj_feat_size
         self.obj_ft_file = obj_ft_file
         self._feature_store = {}
+        print(f"obj_ft_file: {obj_ft_file}")
 
     def load_feature(self, scan, viewpoint, max_objects=None):
         key = '%s_%s' % (scan, viewpoint)
@@ -104,7 +105,24 @@ def load_obj2vps(bbox_file):
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
+                
+                bbox_attr = []
                 for i, pos in enumerate(objinfo['visible_pos']):
-                    bboxes.setdefault(f"{scan}_{vp}_{str(pos)}", [])
-                    bboxes[f"{scan}_{vp}_{str(pos)}"].append((objid, objinfo['bbox2d'][i]))
+                    x, y, w, h = objinfo['bbox2d'][i]
+                    mlef = x == 0 or y == 0
+                    mbtm = y + h == 480 or x + w == 640
+                    if mlef or mbtm:
+                        continue
+                    
+                    bbox_attr.append((h * w, f"{scan}_{vp}_{str(pos)}", objinfo['bbox2d'][i]))
+
+                bbox_attr = sorted(bbox_attr,reverse=True)
+                if len(bbox_attr) > 0:
+                    area, key, bbox = bbox_attr[0]
+                    bboxes.setdefault(key, [])
+                    bboxes[key].append((objid, bbox))
+                    # print(bbox)
+
     return obj2vps, bboxes
+
+
