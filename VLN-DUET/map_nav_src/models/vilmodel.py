@@ -18,6 +18,8 @@ from transformers import BertPreTrainedModel
 from .ops import create_transformer_encoder
 from .ops import extend_neg_masks, gen_seq_masks, pad_tensors_wgrad
 
+import clip
+
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +338,7 @@ class BertOutAttention(nn.Module):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         if attention_mask is not None:
+            attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -800,6 +803,11 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             self.og_head = ClsPrediction(self.config.hidden_size)
         
         self.init_weights()
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, preprocess = clip.load("ViT-L/14", device=device)
+        for params in self.clip_model.parameters():
+            params.requires_grad = False
         
         if config.fix_lang_embedding or config.fix_local_branch:
             for k, v in self.embeddings.named_parameters():
@@ -967,6 +975,22 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
     def forward(self, mode, batch, **kwargs): # memo: モデルの根本はこいつ？
         if mode == 'language':
             txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'])
+            
+            clip_text = clip.tokenize(batch["instructions"]).to("cuda")
+            clip_text_features = self.clip_model.encode_text(clip_text)
+            clip_text_features = clip_text_features.unsqueeze(1)
+            # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
+            txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
+            
+            
+            # instructions = [inst.split(" ") for inst in batch["instructions"]]
+            
+            # instruction_clip = []
+            # for inst in instructions:
+            #     instruction_clip.append(clip.tokenize(inst).to(device))
+            # # instruction_clip = torch.tensor(instruction_clip)
+            # print(instructions, instruction_clip)
+            # sys.exit()
             return txt_embeds
 
         elif mode == 'panorama':
