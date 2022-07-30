@@ -137,12 +137,12 @@ def postprocess_args(args):
     args.anno_dir = os.path.join(ROOTDIR, 'REVERIE', 'annotations')
 
     # Build paths
-    import datetime
+    # import datetime
 
-    dt_now = datetime.datetime.now()
-    now = dt_now.strftime('_%Y-%m-%d_%H:%M:%S')
+    # dt_now = datetime.datetime.now()
+    # now = dt_now.strftime('_%Y-%m-%d_%H:%M:%S')
 
-    args.output_dir += now
+    # args.output_dir += now
     args.ckpt_dir = os.path.join(args.output_dir, 'ckpts')
     args.log_dir = os.path.join(args.output_dir, 'logs')
     args.pred_dir = os.path.join(args.output_dir, 'preds')
