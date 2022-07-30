@@ -324,7 +324,7 @@ class BertOutAttention(nn.Module):
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, hidden_states, context, attention_mask=None):
+    def forward(self, hidden_states, context, attention_mask=None, lang=False):
         mixed_query_layer = self.query(hidden_states)
         mixed_key_layer = self.key(context)
         mixed_value_layer = self.value(context)
@@ -338,7 +338,8 @@ class BertOutAttention(nn.Module):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         if attention_mask is not None:
-            # attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
+            if lang==True:
+                attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -360,8 +361,8 @@ class BertXAttention(nn.Module):
         self.att = BertOutAttention(config, ctx_dim=ctx_dim)
         self.output = BertSelfOutput(config)
 
-    def forward(self, input_tensor, ctx_tensor, ctx_att_mask=None):
-        output, attention_scores = self.att(input_tensor, ctx_tensor, ctx_att_mask)
+    def forward(self, input_tensor, ctx_tensor, ctx_att_mask=None, lang=False):
+        output, attention_scores = self.att(input_tensor, ctx_tensor, ctx_att_mask, lang)
         attention_output = self.output(output, input_tensor)
         return attention_output, attention_scores
 
@@ -478,7 +479,7 @@ class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（ど�
         self, own_feats, own_attention_mask, lang_feats, lang_attention_mask
     ):      
         att_output = self.visual_attention(
-            own_feats, lang_feats, ctx_att_mask=lang_attention_mask # Q, KV, KV_mask
+            own_feats, lang_feats, ctx_att_mask=lang_attention_mask, lang=True # Q, KV, KV_mask
         )[0]
 
         att_output = self.visn_self_att(att_output, own_attention_mask)[0]

@@ -42,11 +42,8 @@ class ObjectFeatureDB(object):
         obj_ids = []
         if len(obj_fts) > 0:
             for k, obj_ang in enumerate(obj_attrs['directions']):
-                # obj_ang_fts[k] = angle_feature(
-                #     obj_ang[0] - base_heading, obj_ang[1] - base_elevation, angle_feat_size
-                # )
                 obj_ang_fts[k] = angle_feature(
-                    base_heading, base_elevation, angle_feat_size
+                    obj_ang[0] - base_heading, obj_ang[1] - base_elevation, angle_feat_size
                 )
                 w, h = obj_attrs['sizes'][k]
                 obj_box_fts[k, :2] = [h/480, w/640]
@@ -94,7 +91,7 @@ def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
     return data
 
 def load_obj2vps(bbox_file):
-    obj2vps, bboxes = {}, {}
+    obj2vps = {}
     bbox_data = json.load(open(bbox_file))
     for scanvp, value in bbox_data.items():
         scan, vp = scanvp.split('_')
@@ -104,7 +101,4 @@ def load_obj2vps(bbox_file):
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
-                for i, pos in enumerate(objinfo['visible_pos']):
-                    bboxes.setdefault(f"{scan}_{vp}_{str(pos)}", [])
-                    bboxes[f"{scan}_{vp}_{str(pos)}"].append((objid, objinfo['bbox2d'][i]))
-    return obj2vps, bboxes
+    return obj2vps
