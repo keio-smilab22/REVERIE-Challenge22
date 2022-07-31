@@ -7,6 +7,7 @@ import math
 import os
 import random
 import re
+import json
 
 import clip
 import cv2 as cv
@@ -102,7 +103,8 @@ def main():
 
     print("preprare ...")
     args = parser.parse_args()
-    obj2vps, bboxes = load_obj2vps(os.path.join('../datasets/', 'REVERIE', 'annotations', 'BBoxes_v2.json'))
+    args.bbox_path = os.path.join('../datasets/', 'REVERIE', 'annotations', 'BBoxes_v2.json')
+    obj2vps, bboxes = load_obj2vps(args.bbox_path)
     preprocess = Preprocess(args.data, bboxes)
 
     paths = glob.glob(f'{args.data}/v1/scans/*')
@@ -110,8 +112,9 @@ def main():
 
     print("scan ...")
     metas = set()
-    for key in tqdm(bboxes.keys()):
-        scanId, viewpointId, _ = key.split("_")
+    bbox_data = json.load(open(args.bbox_path))
+    for key, _ in tqdm(bbox_data.items()):
+        scanId, viewpointId = key.split("_")
         metas.add((scanId, viewpointId))
 
     print("preprocess ...")

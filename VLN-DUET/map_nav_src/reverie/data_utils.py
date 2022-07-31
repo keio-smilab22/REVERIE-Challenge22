@@ -95,13 +95,14 @@ def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
     return data
 
 def load_obj2vps(bbox_file):
+    ignore_list = ["wall", "ceil", "floor"]
     obj2vps, bboxes = {}, {}
     bbox_data = json.load(open(bbox_file))
     for scanvp, value in bbox_data.items():
         scan, vp = scanvp.split('_')
         # for all visible objects at that viewpoint
         for objid, objinfo in value.items():
-            if objinfo['visible_pos']:
+            if objinfo['visible_pos'] and objinfo["name"] not in ignore_list:
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
