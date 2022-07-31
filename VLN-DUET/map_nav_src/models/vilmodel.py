@@ -912,19 +912,20 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             torch.cat([gmap_embeds[:, 0], vp_embeds[:, 0]], 1)
         ))
 
-        fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
-        device = fuse_emb.device
-        fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
-        # print(gmap_embeds.size()[1])
-        size = int(gmap_embeds.size()[1])
-        fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
-        # print(fuse_feat.size())
-        fuse_feat = fuse_feat[:, :size, :]
-        fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
-        fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
-        fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
+        # fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
+        # device = fuse_emb.device
+        # fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
+        # # print(gmap_embeds.size()[1])
+        # size = int(gmap_embeds.size()[1])
+        # fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
+        # # print(fuse_feat.size())
+        # fuse_feat = fuse_feat[:, :size, :]
+        # fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
+        # fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
+        # fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
 
 
+        # 以下global/localは常に同じ
         global_logits = self.tmp_global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
         global_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         global_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
@@ -934,26 +935,26 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
 
 
         # fusion
-        # fused_logits = torch.clone(global_logits)
-        # fused_logits[:, 0] += local_logits[:, 0]   # stop
-        # for i in range(batch_size):
-        #     visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
-        #     tmp = {}
-        #     bw_logits = 0
-        #     for j, cand_vpid in enumerate(vp_cand_vpids[i]):
-        #         if j > 0:
-        #             if cand_vpid in visited_nodes:
-        #                 # back_scoreに足す
-        #                 bw_logits += local_logits[i, j]
-        #             else:
-        #                 # s_i^f
-        #                 tmp[cand_vpid] = local_logits[i, j]
-        #     for j, vp in enumerate(gmap_vpids[i]):
-        #         if j > 0 and vp not in visited_nodes:
-        #             if vp in tmp:
-        #                 fused_logits[i, j] += tmp[vp]
-        #             else:
-        #                 fused_logits[i, j] += bw_logits
+        fused_logits = torch.clone(global_logits)
+        fused_logits[:, 0] += local_logits[:, 0]   # stop
+        for i in range(batch_size):
+            visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
+            tmp = {}
+            bw_logits = 0
+            for j, cand_vpid in enumerate(vp_cand_vpids[i]):
+                if j > 0:
+                    if cand_vpid in visited_nodes:
+                        # back_scoreに足す
+                        bw_logits += local_logits[i, j]
+                    else:
+                        # s_i^f
+                        tmp[cand_vpid] = local_logits[i, j]
+            for j, vp in enumerate(gmap_vpids[i]):
+                if j > 0 and vp not in visited_nodes:
+                    if vp in tmp:
+                        fused_logits[i, j] += tmp[vp]
+                    else:
+                        fused_logits[i, j] += bw_logits
         # print('fused', torch.softmax(fused_logits, 1)[0], fused_logits[0])
 
         # object grounding logits

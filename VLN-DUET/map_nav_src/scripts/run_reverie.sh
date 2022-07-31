@@ -13,7 +13,7 @@ ngpus=1
 seed=0
 
 name=${train_alg}-${features}
-name=${name}-seed.${seed}_ch2ID10_100k #-${ngpus}gpus
+name=${name}-seed.${seed}_ch2ID11_100k #-${ngpus}gpus
 
 outdir=${DATA_ROOT}/REVERIE/exprs_map/finetune/${name}
 
@@ -72,5 +72,5 @@ CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
 # test
 CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
-      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch2ID10_100k/ckpts/best_val_unseen \
+      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch2ID11_100k/ckpts/best_val_unseen \
       --test --submit
