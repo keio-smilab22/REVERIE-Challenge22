@@ -50,7 +50,7 @@ def load_nav_graphs(connectivity_dir, scans):
             graphs[scan] = G
     return graphs
 
-def new_simulator(connectivity_dir, scan_data_dir=None):
+def new_simulator(connectivity_dir, scan_data_dir=None, setRenderingEnabled=False):
     import MatterSim
 
     # Simulator image parameters
@@ -62,7 +62,7 @@ def new_simulator(connectivity_dir, scan_data_dir=None):
     if scan_data_dir:
         sim.setDatasetPath(scan_data_dir)
     sim.setNavGraphPath(connectivity_dir)
-    sim.setRenderingEnabled(False)
+    sim.setRenderingEnabled(setRenderingEnabled)
     sim.setCameraResolution(WIDTH, HEIGHT)
     sim.setCameraVFOV(math.radians(VFOV))
     sim.setDiscretizedViewingAngles(True)
