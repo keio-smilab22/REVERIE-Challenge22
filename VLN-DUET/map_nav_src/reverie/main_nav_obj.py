@@ -219,7 +219,7 @@ def train(args, train_env, val_envs, aug_env=None, rank=-1):
 
                 # select model by spl
                 if env_name in best_val:
-                    if score_summary['rgspl'] >= best_val[env_name]['rgspl']:
+                    if score_summary['spl'] >= best_val[env_name]['spl']:
                         best_val[env_name]['rgspl'] = score_summary['rgspl']
                         best_val[env_name]['spl'] = score_summary['spl']
                         best_val[env_name]['state'] = 'Iter %d %s' % (iter, loss_str)

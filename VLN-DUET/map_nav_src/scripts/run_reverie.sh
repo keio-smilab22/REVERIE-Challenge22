@@ -1,4 +1,4 @@
-export PYTHONPATH=/root/mount/Matterport3DSimulator/build:/root/mount/VLN-DUET/map_nav_src
+# export PYTHONPATH=/root/mount/Matterport3DSimulator/build:/root/mount/VLN-DUET/map_nav_src
 
 DATA_ROOT=../datasets
 
@@ -13,7 +13,7 @@ ngpus=1
 seed=0
 
 name=${train_alg}-${features}
-name=${name}-seed.${seed} #-${ngpus}gpus
+name=${name}-seed.${seed}_ch2ID11_100k #-${ngpus}gpus
 
 outdir=${DATA_ROOT}/REVERIE/exprs_map/finetune/${name}
 
@@ -33,8 +33,8 @@ flag="--root_dir ${DATA_ROOT}
 
       --train_alg ${train_alg}
       
-      --num_l_layers 3
-      --num_x_layers 3
+      --num_l_layers 9
+      --num_x_layers 4
       --num_pano_layers 2
       
       --max_action_len 15
@@ -64,13 +64,13 @@ flag="--root_dir ${DATA_ROOT}
 
 # train
 # CUDA_VISIBLE_DEVICES='2' python -m pdb -c c reverie/main_nav_obj.py $flag  \
-CUDA_VISIBLE_DEVICES='2' python reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth
 #       --eval_first
 
 # test
-# CUDA_VISIBLE_DEVICES='2' python reverie/main_nav_obj.py $flag  \
-#       --tokenizer bert \
-#       --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen \
-#       --test --submit
+CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
+      --tokenizer bert \
+      --resume_file ../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0_ch2ID11_100k/ckpts/best_val_unseen \
+      --test --submit

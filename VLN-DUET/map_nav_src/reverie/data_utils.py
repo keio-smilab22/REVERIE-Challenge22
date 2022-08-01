@@ -106,6 +106,7 @@ def load_obj2vps(bbox_file):
                 # if such object not already in the dict
                 obj2vps.setdefault(scan+'_'+objid, [])
                 obj2vps[scan+'_'+objid].append(vp)
+
                 
                 bbox_attr = []
                 for i, pos in enumerate(objinfo['visible_pos']):
@@ -125,5 +126,3 @@ def load_obj2vps(bbox_file):
                     # print(bbox)
 
     return obj2vps, bboxes
-
-

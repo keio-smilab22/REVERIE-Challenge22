@@ -18,6 +18,8 @@ from transformers import BertPreTrainedModel
 from .ops import create_transformer_encoder
 from .ops import extend_neg_masks, gen_seq_masks, pad_tensors_wgrad
 
+import clip
+
 
 logger = logging.getLogger(__name__)
 
@@ -322,7 +324,7 @@ class BertOutAttention(nn.Module):
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
-    def forward(self, hidden_states, context, attention_mask=None):
+    def forward(self, hidden_states, context, attention_mask=None, lang=False):
         mixed_query_layer = self.query(hidden_states)
         mixed_key_layer = self.key(context)
         mixed_value_layer = self.value(context)
@@ -336,6 +338,8 @@ class BertOutAttention(nn.Module):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         if attention_mask is not None:
+            if lang==True:
+                attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -357,8 +361,8 @@ class BertXAttention(nn.Module):
         self.att = BertOutAttention(config, ctx_dim=ctx_dim)
         self.output = BertSelfOutput(config)
 
-    def forward(self, input_tensor, ctx_tensor, ctx_att_mask=None):
-        output, attention_scores = self.att(input_tensor, ctx_tensor, ctx_att_mask)
+    def forward(self, input_tensor, ctx_tensor, ctx_att_mask=None, lang=False):
+        output, attention_scores = self.att(input_tensor, ctx_tensor, ctx_att_mask, lang)
         attention_output = self.output(output, input_tensor)
         return attention_output, attention_scores
 
@@ -472,11 +476,14 @@ class CrossAttn_before(nn.Module): # crossattentionをする前のやつ（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, lang_feats, own_feats, own_attention_mask
+        self, own_feats, own_attention_mask, lang_feats, lang_attention_mask
     ):      
         att_output = self.visual_attention(
-            lang_feats, own_feats, ctx_att_mask=own_attention_mask # Q, KV, KV_mask
+            own_feats, lang_feats, ctx_att_mask=lang_attention_mask, lang=True # Q, KV, KV_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         return att_output
 
 class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（どちらもこれ使う）
@@ -499,11 +506,14 @@ class CrossAttn_after(nn.Module):  # crossattentionをする後ろの方（ど�
         self.cross_attention = BertXAttention(config)
 
     def forward(
-        self, ano_att_output, own_att_output, own_attention_mask
+        self, own_att_output, own_attention_mask, ano_att_output, ano_attention_mask
     ):      
         att_output = self.cross_attention(
-            ano_att_output, own_att_output, ctx_att_mask=own_attention_mask
+            own_att_output, ano_att_output, ctx_att_mask=ano_attention_mask
         )[0]
+
+        att_output = self.visn_self_att(att_output, own_attention_mask)[0]
+
         inter_output = self.visn_inter(att_output)
         output = self.visn_output(inter_output, att_output)
 
@@ -521,11 +531,11 @@ class CrossAttn(nn.Module):
     def forward(
         self, lang_feats, lang_attention_mask, gmap_embeds, gmap_masks, img_embeds, img_masks
     ):      
-        global_out = self.global_before(gmap_embeds, lang_feats, lang_attention_mask)
-        local_out = self.local_before(img_embeds, lang_feats, lang_attention_mask)
+        global_out = self.global_before(gmap_embeds, gmap_masks, lang_feats, lang_attention_mask)
+        local_out = self.local_before(img_embeds, img_masks, lang_feats, lang_attention_mask)
 
-        global_out = self.global_after(global_out, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
-        local_out = self.local_after(local_out, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
+        global_out = self.global_after(global_out, gmap_masks, local_out, img_masks) # gmap_masks.size() = [8, 1, 1, 44]
+        local_out = self.local_after(local_out, img_masks, global_out, gmap_masks) # img_masks.size() = [8, 1, 1, 9]
 
         return global_out, local_out
 
@@ -789,6 +799,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         self.global_encoder = GlobalMapEncoder(config)
 
         self.global_sap_head = ClsPrediction(self.config.hidden_size)
+        self.tmp_global_sap_head = ClsPrediction(self.config.hidden_size)
         self.local_sap_head = ClsPrediction(self.config.hidden_size)
         if config.glocal_fuse:
             self.sap_fuse_linear = ClsPrediction(self.config.hidden_size, input_size=self.config.hidden_size*2)
@@ -798,6 +809,11 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             self.og_head = ClsPrediction(self.config.hidden_size)
         
         self.init_weights()
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.clip_model, preprocess = clip.load("ViT-L/14", device=device)
+        for params in self.clip_model.parameters():
+            params.requires_grad = False
         
         if config.fix_lang_embedding or config.fix_local_branch:
             for k, v in self.embeddings.named_parameters():
@@ -814,8 +830,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
                 v.requires_grad = False
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
-
-
+        
         self.fuse_att = BertAttention(config)
         self.heads = config.num_attention_heads
     
@@ -906,20 +921,21 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             torch.cat([gmap_embeds[:, 0], vp_embeds[:, 0]], 1)
         ))
 
-        fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
-        device = fuse_emb.device
-        fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
-        # print(gmap_embeds.size()[1])
-        size = int(gmap_embeds.size()[1])
-        fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
-        # print(fuse_feat.size())
-        fuse_feat = fuse_feat[:, :size, :]
-        fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
-        fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
-        fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
+        # fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
+        # device = fuse_emb.device
+        # fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
+        # # print(gmap_embeds.size()[1])
+        # size = int(gmap_embeds.size()[1])
+        # fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
+        # # print(fuse_feat.size())
+        # fuse_feat = fuse_feat[:, :size, :]
+        # fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
+        # fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
+        # fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
 
 
-        global_logits = self.global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
+        # 以下global/localは常に同じ
+        global_logits = self.tmp_global_sap_head(gmap_embeds).squeeze(2) * fuse_weights
         global_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         global_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
 
@@ -928,26 +944,26 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
 
 
         # fusion
-        # fused_logits = torch.clone(global_logits)
-        # fused_logits[:, 0] += local_logits[:, 0]   # stop
-        # for i in range(batch_size):
-        #     visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
-        #     tmp = {}
-        #     bw_logits = 0
-        #     for j, cand_vpid in enumerate(vp_cand_vpids[i]):
-        #         if j > 0:
-        #             if cand_vpid in visited_nodes:
-        #                 # back_scoreに足す
-        #                 bw_logits += local_logits[i, j]
-        #             else:
-        #                 # s_i^f
-        #                 tmp[cand_vpid] = local_logits[i, j]
-        #     for j, vp in enumerate(gmap_vpids[i]):
-        #         if j > 0 and vp not in visited_nodes:
-        #             if vp in tmp:
-        #                 fused_logits[i, j] += tmp[vp]
-        #             else:
-        #                 fused_logits[i, j] += bw_logits
+        fused_logits = torch.clone(global_logits)
+        fused_logits[:, 0] += local_logits[:, 0]   # stop
+        for i in range(batch_size):
+            visited_nodes = set([vp for vp, mask in zip(gmap_vpids[i], gmap_visited_masks[i]) if mask])
+            tmp = {}
+            bw_logits = 0
+            for j, cand_vpid in enumerate(vp_cand_vpids[i]):
+                if j > 0:
+                    if cand_vpid in visited_nodes:
+                        # back_scoreに足す
+                        bw_logits += local_logits[i, j]
+                    else:
+                        # s_i^f
+                        tmp[cand_vpid] = local_logits[i, j]
+            for j, vp in enumerate(gmap_vpids[i]):
+                if j > 0 and vp not in visited_nodes:
+                    if vp in tmp:
+                        fused_logits[i, j] += tmp[vp]
+                    else:
+                        fused_logits[i, j] += bw_logits
         # print('fused', torch.softmax(fused_logits, 1)[0], fused_logits[0])
 
         # object grounding logits
@@ -970,6 +986,22 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
     def forward(self, mode, batch, **kwargs): # memo: モデルの根本はこいつ？
         if mode == 'language':
             txt_embeds = self.forward_text(batch['txt_ids'], batch['txt_masks'])
+            
+            clip_text = clip.tokenize(batch["instructions"]).to("cuda")
+            clip_text_features = self.clip_model.encode_text(clip_text)
+            clip_text_features = clip_text_features.unsqueeze(1)
+            # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
+            txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
+            
+            
+            # instructions = [inst.split(" ") for inst in batch["instructions"]]
+            
+            # instruction_clip = []
+            # for inst in instructions:
+            #     instruction_clip.append(clip.tokenize(inst).to(device))
+            # # instruction_clip = torch.tensor(instruction_clip)
+            # print(instructions, instruction_clip)
+            # sys.exit()
             return txt_embeds
 
         elif mode == 'panorama':
