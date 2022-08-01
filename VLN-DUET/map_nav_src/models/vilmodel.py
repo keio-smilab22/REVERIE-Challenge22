@@ -826,7 +826,8 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
         
-        self.fuse_att = BertAttention(config)
+        # self.fuse_att = BertAttention(config)
+        self.obj_att = BertXAttention(config)
         self.heads = config.num_attention_heads
     
     def forward_text(self, txt_ids, txt_masks):
@@ -955,11 +956,17 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
                         fused_logits[i, j] += tmp[vp]
                     else:
                         fused_logits[i, j] += bw_logits
-        # print('fused', torch.softmax(fused_logits, 1)[0], fused_logits[0])
 
         # object grounding logits
         if vp_obj_masks is not None:
-            obj_logits = self.og_head(vp_embeds).squeeze(2)
+            # tmp_vp_obj_masks = vp_obj_masks.detach().unsqueeze(2).repeat(1, 1, self.config.hidden_size)
+            # print(tmp_vp_obj_masks.size())
+            tmp_vp_embeds = vp_embeds.clone()
+            clip_token = self.clip_txt_feats.clone().to(torch.float32)
+            # tmp_vp_embeds.masked_fill_(tmp_vp_obj_masks.logical_not(), 0)
+            tmp_vp_embeds = self.obj_att(tmp_vp_embeds, clip_token)[0]
+            obj_logits = self.og_head(tmp_vp_embeds).squeeze(2)
+            # 後からmaskすることにより，まだ見えていないという可能性を考慮？
             obj_logits.masked_fill_(vp_obj_masks.logical_not(), -float('inf'))
         else:
             obj_logits = None
@@ -981,6 +988,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             clip_text = clip.tokenize(batch["instructions"]).to("cuda")
             clip_text_features = self.clip_model.encode_text(clip_text)
             clip_text_features = clip_text_features.unsqueeze(1)
+            self.clip_txt_feats = clip_text_features
             # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
             txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
             
