@@ -786,9 +786,9 @@ class ClsPrediction(nn.Module):
 class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本はこいつか？？？？
     def __init__(self, config):
         super().__init__(config)
-        token_gt_layer = nn.TransformerEncoderLayer(d_model=self.config.hidden_size+100, nhead=4)
+        token_gt_layer = nn.TransformerEncoderLayer(d_model=self.config.hidden_size+200, nhead=4)
         self.token_gt_encoder = nn.TransformerEncoder(token_gt_layer,num_layers=3)
-        self.token_gt_linear = nn.Linear(self.config.hidden_size+100,self.config.hidden_size)
+        self.token_gt_linear = nn.Linear(self.config.hidden_size+200,self.config.hidden_size)
 
         self.embeddings = BertEmbeddings(config)
         self.lang_encoder = LanguageEncoder(config)

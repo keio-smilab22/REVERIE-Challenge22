@@ -162,7 +162,7 @@ class GraphMap(object):
         return self.node_embeds[vp][0] / self.node_embeds[vp][1]
 
     def graph_embedding(self,vps,embeds): # like TokenGT
-        M = 50
+        M = 100
         K = len(embeds)
 
         laps = self.get_orthogonal_matrix(vps)
