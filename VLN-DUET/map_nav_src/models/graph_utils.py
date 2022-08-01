@@ -1,5 +1,6 @@
 from collections import defaultdict
 import numpy as np
+import torch
 
 MAX_DIST = 30
 MAX_STEP = 10
@@ -45,10 +46,10 @@ def get_angle_fts(headings, elevations, angle_feat_size):
         ang_fts = np.concatenate([ang_fts] * num_repeats, 1)
     return ang_fts
 
-
+INF = 95959595
 class FloydGraph(object):
     def __init__(self):
-        self._dis = defaultdict(lambda :defaultdict(lambda: 95959595))
+        self._dis = defaultdict(lambda :defaultdict(lambda: INF))
         self._point = defaultdict(lambda :defaultdict(lambda: ""))
         self._visited = set()
 
@@ -112,6 +113,7 @@ class GraphMap(object):
         self.node_heading = {}
         self.node_elevation = {}
         self.node_reldist = {}
+        self.edge = set()
 
     def update_graph(self, ob):
         # self.node_positions[ob['viewpoint']] = ob['position']
@@ -123,6 +125,8 @@ class GraphMap(object):
             # dist = calc_position_distance(ob['position'], cc['position'])
             # self.graph.add_edge(ob['viewpoint'], cc['viewpointId'], dist)
             self.graph.add_edge(ob['viewpoint'], cc['viewpointId'], cc['rel_dist'])
+            self.edge.add((ob['viewpoint'], cc['viewpointId']))
+            self.edge.add((cc['viewpointId'],ob['viewpoint']))
             self.node_heading[cc['viewpointId']] = cc['heading']
             self.node_elevation[cc['viewpointId']] = cc['elevation']
             self.node_reldist[cc['viewpointId']] = cc['rel_dist']
@@ -137,9 +141,52 @@ class GraphMap(object):
                 self.node_embeds[vp][1] += 1
             else:
                 self.node_embeds[vp] = [embed, 1]
-    
+        
+    def get_orthogonal_matrix(self,vps):
+        K = len(vps)
+        adj = np.zeros((K,K))
+        for i, vp1 in enumerate(vps):
+            for j, vp2 in enumerate(vps):
+                e = (vp1,vp2)
+                adj[i,j] = 1 if e in self.edge else 0
+
+        d = np.diag(np.sum(adj,axis=0))
+        if d.sum() == 0: return None
+        d_inv = np.linalg.inv(d)
+        l = d-adj # laplacian
+        l_norm = np.dot(np.sqrt(d_inv),np.dot(l,np.sqrt(d_inv)))
+        _, eig_vecs = np.linalg.eig(l_norm)
+        return eig_vecs
+        
     def get_node_embed(self, vp):
         return self.node_embeds[vp][0] / self.node_embeds[vp][1]
+
+    def graph_embedding(self,vps,embeds): # like TokenGT
+        M = 50
+        K = len(embeds)
+
+        laps = self.get_orthogonal_matrix(vps)
+        if laps[0].shape[0] < M:
+            d = M - laps[0].shape[0]
+            prep = torch.nn.ConstantPad1d((0,d), 0)
+        else:
+            prep = torch.nn.Identity()
+        
+        laps = [prep(torch.Tensor(laps[i])).cuda() for i in range(laps.shape[0])]
+        emb_dim = 0
+        if laps is None: return embeds
+
+        for i in range(K):
+            emb_dim = embeds[i].shape[0]
+            embeds[i] = torch.cat((embeds[i],laps[i],laps[i]),dim=0)
+
+        for i in range(K):
+            for j in range(K):
+                zeros = torch.zeros((emb_dim)).cuda() # ゼロ埋めしとけばTypeIdentifiersはいらないはず
+                embeds.append(torch.cat([zeros,laps[i],laps[j]],dim=0))
+
+        return embeds
+
 
     # def get_pos_fts(self, cur_vp, gmap_vpids, cur_heading, cur_elevation, angle_feat_size=4):
     #     # dim=7 (sin(heading), cos(heading), sin(elevation), cos(elevation),

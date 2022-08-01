@@ -131,6 +131,8 @@ class GMapObjectNavAgent(Seq2SeqAgent):
 
             gmap_step_ids = [gmap.node_step_ids.get(vp, 0) for vp in gmap_vpids]
             gmap_img_embeds = [gmap.get_node_embed(vp) for vp in gmap_vpids[1:]]
+            gmap_img_embeds = gmap.graph_embedding(gmap_vpids[1:],gmap_img_embeds)
+            
             gmap_img_embeds = torch.stack(
                 [torch.zeros_like(gmap_img_embeds[0])] + gmap_img_embeds, 0
             )   # cuda

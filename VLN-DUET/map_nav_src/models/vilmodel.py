@@ -680,6 +680,7 @@ class GlobalMapEncoder(nn.Module):
             BertLayerNorm(config.hidden_size, eps=1e-12)
         )
         self.gmap_step_embeddings = nn.Embedding(config.max_action_steps, config.hidden_size)
+
         # BERTのattention機構を繰り返す構造
         self.encoder = CrossmodalEncoder(config)
         
@@ -775,6 +776,10 @@ class ClsPrediction(nn.Module):
 class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本はこいつか？？？？
     def __init__(self, config):
         super().__init__(config)
+        token_gt_layer = nn.TransformerEncoderLayer(d_model=self.config.hidden_size+100, nhead=4)
+        self.token_gt_encoder = nn.TransformerEncoder(token_gt_layer,num_layers=3)
+        self.token_gt_linear = nn.Linear(self.config.hidden_size+100,self.config.hidden_size)
+
         self.embeddings = BertEmbeddings(config)
         self.lang_encoder = LanguageEncoder(config)
 
@@ -872,7 +877,11 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         vp_img_embeds, vp_pos_fts, vp_masks, vp_nav_masks, vp_obj_masks, vp_cand_vpids,
     ):
         batch_size = txt_embeds.size(0)
-
+        K = gmap_step_ids.shape[-1]
+        gmap_img_embeds = self.token_gt_encoder(gmap_img_embeds)
+        gmap_img_embeds = self.token_gt_linear(gmap_img_embeds)
+        gmap_img_embeds = gmap_img_embeds[:,:K,:]
+       
         # global branch & local branch
         gmap_embeds = gmap_img_embeds + \
                       self.global_encoder.gmap_step_embeddings(gmap_step_ids) + \
