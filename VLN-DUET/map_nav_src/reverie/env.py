@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 import torch
 import numpy as np
 import cv2 as cv
@@ -239,7 +240,7 @@ class ReverieObjectNavBatch(object):
                 heading = state.heading - base_heading
                 elevation = state.elevation - base_elevation
 
-                visual_feat = feature[ix]
+                visual_feat = np.squeeze(feature[ix])
 
                 # rgb = np.array(state.rgb, copy=True)
                 # if self.visualize and rgb.sum() > 1:
@@ -268,6 +269,9 @@ class ReverieObjectNavBatch(object):
                     loc_heading = heading + loc.rel_heading
                     loc_elevation = elevation + loc.rel_elevation
                     angle_feat = angle_feature(loc_heading, loc_elevation, self.angle_feat_size)
+                    # print(visual_feat.shape)
+                    # print(angle_feat.shape)
+                    # sys.exit()
                     if (loc.viewpointId not in adj_dict or
                             distance < adj_dict[loc.viewpointId]['distance']):
                         adj_dict[loc.viewpointId] = {
@@ -323,6 +327,7 @@ class ReverieObjectNavBatch(object):
         for i, (feature, state) in enumerate(self.env.getStates()):
             item = self.batch[i]
             base_view_id = state.viewIndex
+            feature = np.squeeze(feature)
            
             # Full features
             # memo: candidateはここに収納されている

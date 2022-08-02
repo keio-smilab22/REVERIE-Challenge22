@@ -103,8 +103,8 @@ class Preprocess:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default="/mnt/Matterport3DSimulator/data")
-    parser.add_argument('--view_file', default="vitb16_view.hdf5")
-    parser.add_argument('--obj_file', default="vitb16_obj.hdf5")
+    parser.add_argument('--view_file', default="vitb16_v2_view.hdf5")
+    parser.add_argument('--obj_file', default="vitb16_v2_obj.hdf5")
     # parser.add_argument('--angle_feat_size',default=4)
 
     print("preprare ...")

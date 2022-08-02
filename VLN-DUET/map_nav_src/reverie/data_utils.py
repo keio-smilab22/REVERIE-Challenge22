@@ -105,33 +105,33 @@ def construct_instrs(anno_dir, dataset, splits, tokenizer, max_instr_len=512):
 
 
 def load_obj2vps(bbox_file):
-    ignore_list = ["wall", "ceil", "floor"]
+    # ignore_list = ["wall", "ceil", "floor"]
     obj2vps, bboxes = {}, {}
     bbox_data = json.load(open(bbox_file))
     for scanvp, value in bbox_data.items():
         scan, vp = scanvp.split('_')
         # for all visible objects at that viewpoint
         for objid, objinfo in value.items():
-            if objinfo['visible_pos'] and objinfo["name"] not in ignore_list:
+            # if objinfo['visible_pos'] and objinfo["name"] not in ignore_list:
                 # if such object not already in the dict
-                obj2vps.setdefault(scan+'_'+objid, [])
-                obj2vps[scan+'_'+objid].append(vp)
+            obj2vps.setdefault(scan+'_'+objid, [])
+            obj2vps[scan+'_'+objid].append(vp)
+            
+            bbox_attr = []
+            for i, pos in enumerate(objinfo['visible_pos']):
+                x, y, w, h = objinfo['bbox2d'][i]
+                # mlef = x == 0 or y == 0
+                # mbtm = y + h == 480 or x + w == 640
+                # if mlef or mbtm:
+                #     continue
                 
-                bbox_attr = []
-                for i, pos in enumerate(objinfo['visible_pos']):
-                    x, y, w, h = objinfo['bbox2d'][i]
-                    mlef = x == 0 or y == 0
-                    mbtm = y + h == 480 or x + w == 640
-                    if mlef or mbtm:
-                        continue
-                    
-                    bbox_attr.append((h * w, f"{scan}_{vp}_{str(pos)}", objinfo['bbox2d'][i]))
+                bbox_attr.append((h * w, f"{scan}_{vp}_{str(pos)}", objinfo['bbox2d'][i]))
 
-                bbox_attr = sorted(bbox_attr,reverse=True)
-                if len(bbox_attr) > 0:
-                    area, key, bbox = bbox_attr[0]
-                    bboxes.setdefault(key, [])
-                    bboxes[key].append((objid, bbox))
-                    # print(bbox)
+            bbox_attr = sorted(bbox_attr,reverse=True)
+            if len(bbox_attr) > 0:
+                area, key, bbox = bbox_attr[0]
+                bboxes.setdefault(key, [])
+                bboxes[key].append((objid, bbox))
+                # print(bbox)
 
     return obj2vps, bboxes
