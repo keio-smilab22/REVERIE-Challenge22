@@ -13,11 +13,11 @@ ngpus=1
 seed=0
 
 name=${train_alg}-${features}
-name=${name}-seed.${seed}_ch2ID15_100k #-${ngpus}gpus
+name=${name}-seed.${seed}_ch2ID16_100k #-${ngpus}gpus
 
 outdir=${DATA_ROOT}/REVERIE/exprs_map/finetune/${name}
 
-# ID15のdefaultは3, 4, 2
+# ID16のdefaultは3, 4, 2
 flag="--root_dir ${DATA_ROOT}
       --dataset reverie
       --output_dir ${outdir}
@@ -34,7 +34,7 @@ flag="--root_dir ${DATA_ROOT}
 
       --train_alg ${train_alg}
       
-      --num_l_layers 9
+      --num_l_layers 3
       --num_x_layers 4
       --num_pano_layers 2
       
