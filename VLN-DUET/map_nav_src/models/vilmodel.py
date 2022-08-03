@@ -339,7 +339,7 @@ class BertOutAttention(nn.Module):
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         if attention_mask is not None:
             if lang==True:
-                attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
+                attention_mask = torch.cat((torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0"), attention_mask), 3)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -918,9 +918,10 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
         # print(gmap_embeds.size()[1])
         size = int(gmap_embeds.size()[1])
-        fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
+        att_fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
         # print(fuse_feat.size())
-        fuse_feat = fuse_feat[:, :size, :]
+        fuse_feat = att_fuse_feat[:, :size, :].clone()
+        obj_feat = att_fuse_feat[:, size:, :].clone()
         fused_logits = self.global_sap_head(fuse_feat).squeeze(2)
         fused_logits.masked_fill_(gmap_visited_masks, -float('inf')) # memo: ここでmaskされるから常に確率0になる
         fused_logits.masked_fill_(gmap_masks.logical_not(), -float('inf'))
@@ -961,7 +962,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
         if vp_obj_masks is not None:
             # tmp_vp_obj_masks = vp_obj_masks.detach().unsqueeze(2).repeat(1, 1, self.config.hidden_size)
             # print(tmp_vp_obj_masks.size())
-            tmp_vp_embeds = vp_embeds.clone()
+            tmp_vp_embeds = obj_feat.clone()
             clip_token = self.clip_txt_feats.clone().to(torch.float32)
             # tmp_vp_embeds.masked_fill_(tmp_vp_obj_masks.logical_not(), 0)
             tmp_vp_embeds = self.obj_att(tmp_vp_embeds, clip_token)[0]
@@ -990,7 +991,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             clip_text_features = clip_text_features.unsqueeze(1)
             self.clip_txt_feats = clip_text_features
             # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
-            txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
+            txt_embeds = torch.cat((clip_text_features, txt_embeds), 1)
             
             
             # instructions = [inst.split(" ") for inst in batch["instructions"]]
