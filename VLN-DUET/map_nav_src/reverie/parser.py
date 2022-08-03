@@ -122,12 +122,14 @@ def postprocess_args(args):
 
     # Setup input paths
     ft_file_map = {
-        'vitbase': 'view.hdf5',
+        'vitbase': 'vitb16_v2_view.hdf5',
+        # 'vitbase': 'view.hdf5',
     }
     args.img_ft_file = os.path.join(ROOTDIR, 'R2R', 'features', ft_file_map[args.features])
 
     obj_ft_file_map = {
-        'vitbase': 'obj.hdf5',
+        'vitbase': 'vitb16_v2_obj.hdf5',
+        # 'vitbase': 'obj.hdf5',
     }
     args.obj_ft_file = os.path.join(ROOTDIR, 'REVERIE', 'features', obj_ft_file_map[args.obj_features])
     
@@ -137,12 +139,12 @@ def postprocess_args(args):
     args.anno_dir = os.path.join(ROOTDIR, 'REVERIE', 'annotations')
 
     # Build paths
-    import datetime
+    # import datetime
 
-    dt_now = datetime.datetime.now()
-    now = dt_now.strftime('_%Y-%m-%d_%H:%M:%S')
+    # dt_now = datetime.datetime.now()
+    # now = dt_now.strftime('_%Y-%m-%d_%H:%M:%S')
 
-    args.output_dir += now
+    # args.output_dir += now
     args.ckpt_dir = os.path.join(args.output_dir, 'ckpts')
     args.log_dir = os.path.join(args.output_dir, 'logs')
     args.pred_dir = os.path.join(args.output_dir, 'preds')

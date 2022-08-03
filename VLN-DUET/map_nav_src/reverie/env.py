@@ -323,6 +323,7 @@ class ReverieObjectNavBatch(object):
         for i, (feature, state) in enumerate(self.env.getStates()):
             item = self.batch[i]
             base_view_id = state.viewIndex
+            feature = np.squeeze(feature)
            
             # Full features
             # memo: candidateはここに収納されている
