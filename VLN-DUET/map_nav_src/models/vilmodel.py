@@ -339,7 +339,7 @@ class BertOutAttention(nn.Module):
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         if attention_mask is not None:
             if lang==True:
-                attention_mask = torch.cat((attention_mask, torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0")), 3)
+                attention_mask = torch.cat((torch.zeros(attention_mask.shape[0], 1, 1, 1).to("cuda:0"), attention_mask), 3)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -777,7 +777,14 @@ class ClsPrediction(nn.Module):
         self.net = nn.Sequential(nn.Linear(input_size, hidden_size),
                                  nn.ReLU(),
                                  BertLayerNorm(hidden_size, eps=1e-12),
-                                 nn.Linear(hidden_size, 1))
+                                 nn.Linear(hidden_size, hidden_size // 4),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size // 4, eps=1e-12),
+                                 nn.Linear(hidden_size // 4, hidden_size // 16),
+                                 nn.ReLU(),
+                                 BertLayerNorm(hidden_size // 16, eps=1e-12),
+                                 nn.Linear(hidden_size // 16, 1)
+                                 )
 
     def forward(self, x):
         return self.net(x)
@@ -990,7 +997,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             clip_text_features = clip_text_features.unsqueeze(1)
             self.clip_txt_feats = clip_text_features
             # clip_text_features = torch.cat((clip_text_features, torch.zeros(txt_embeds.shape[0], 1, txt_embeds.shape[2]-clip_text_features.shape[2]).to(device)), 2)
-            txt_embeds = torch.cat((txt_embeds, clip_text_features), 1)
+            txt_embeds = torch.cat((clip_text_features, txt_embeds), 1)
             
             
             # instructions = [inst.split(" ") for inst in batch["instructions"]]
