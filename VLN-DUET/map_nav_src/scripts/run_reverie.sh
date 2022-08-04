@@ -13,7 +13,7 @@ ngpus=1
 seed=0
 
 name=${train_alg}-${features}
-name=${name}-seed.${seed}_ch2ID16_100k #-${ngpus}gpus
+name=${name}-seed.${seed}_ch2ID17_100k #-${ngpus}gpus
 
 outdir=${DATA_ROOT}/REVERIE/exprs_map/finetune/${name}
 

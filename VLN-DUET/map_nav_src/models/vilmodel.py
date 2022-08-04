@@ -833,7 +833,7 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             for k, v in self.og_head.named_parameters():
                 v.requires_grad = False
         
-        self.fuse_att = BertAttention(config)
+        self.fuse_att = BertXAttention(config)
         self.obj_att = BertXAttention(config)
         self.heads = config.num_attention_heads
     
@@ -922,10 +922,11 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
 
         fuse_emb = torch.cat([gmap_embeds, vp_embeds], 1)
         device = fuse_emb.device
-        fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
+        # fuse_mask = torch.zeros(fuse_emb.size()[0], self.heads, fuse_emb.size()[1], fuse_emb.size()[1]).to(device)
         # print(gmap_embeds.size()[1])
+        clip_token = self.clip_txt_feats.clone().to(torch.float32)
         size = int(gmap_embeds.size()[1])
-        att_fuse_feat = self.fuse_att(fuse_emb, fuse_mask)[0]
+        att_fuse_feat = self.fuse_att(fuse_emb, clip_token)[0]
         # print(fuse_feat.size())
         fuse_feat = att_fuse_feat[:, :size, :].clone()
         obj_feat = att_fuse_feat[:, size:, :].clone()
@@ -970,9 +971,9 @@ class GlocalTextPathNavCMT(BertPreTrainedModel): # memo: モデルの根本は�
             # tmp_vp_obj_masks = vp_obj_masks.detach().unsqueeze(2).repeat(1, 1, self.config.hidden_size)
             # print(tmp_vp_obj_masks.size())
             tmp_vp_embeds = obj_feat.clone()
-            clip_token = self.clip_txt_feats.clone().to(torch.float32)
+            # clip_token = self.clip_txt_feats.clone().to(torch.float32)
             # tmp_vp_embeds.masked_fill_(tmp_vp_obj_masks.logical_not(), 0)
-            tmp_vp_embeds = self.obj_att(tmp_vp_embeds, clip_token)[0]
+            # tmp_vp_embeds = self.obj_att(tmp_vp_embeds, clip_token)[0]
             obj_logits = self.og_head(tmp_vp_embeds).squeeze(2)
             # 後からmaskすることにより，まだ見えていないという可能性を考慮？
             obj_logits.masked_fill_(vp_obj_masks.logical_not(), -float('inf'))
