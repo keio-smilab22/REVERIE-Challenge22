@@ -61,7 +61,7 @@ bash scripts/run_reverie.sh
 
 After evaluation, you can get a checkpoint file (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen`) and predictions (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/preds/submit_test_dynamic.json`)
 
-You can get a checkpoint and sample predictions from [here]{https://drive.google.com/drive/u/2/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t}.
+You can get a checkpoint and sample predictions from [here](https://drive.google.com/drive/u/2/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t).
 
 For REVERIE Challenge 2022, you have to modify `submit_test_dynamic.json` before submission. 
 ```
