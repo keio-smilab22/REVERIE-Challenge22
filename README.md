@@ -68,3 +68,6 @@ For REVERIE Challenge 2022, you have to modify `submit_test_dynamic.json` before
 cd VLN-DUET/map_nav_src
 python make_submit.py
 ```
+
+生成したsubmit_test_dynamic.jsonを用いて、以下のレポジトリでGroundingを行います
+https://github.com/zhaoc5/Grounding-REVERIE-Challenge
