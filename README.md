@@ -3,19 +3,19 @@
 This repository is the official implementation of TeamKeio
 
 ## Requirements
-The training and inference were conducted on a machine equipped with a GeForce RTX 3090 with 24 GB of GPU memory, and an Intel Corei9 10900K processor. 
+The training and inference were conducted on a machine equipped with a NVIDIA A100 with 40 GB of GPU memory, and an Intel Xeon Platinum 8360Y processor. 
 
 0. Install docker, nvidia-docker2
 
 1. Install [Matterport3D simulators](https://github.com/peteanderson80/Matterport3DSimulator) . Please download [Dataset](https://niessner.github.io/Matterport/). We use the latest version instead of v0.1.
 ```
-git clone --recursive https://github.com/keio-smilab22/REVERIE-Challenge22.git
+git clone --recursive -b channel2main/final https://github.com/keio-smilab22/REVERIE-Challenge22.git
 cd REVERIE-Challenge22
 git clone --recursive https://github.com/peteanderson80/Matterport3DSimulator.git
 cd Matterport3DSimulator
 
 mv ../Dockerfile ./
-export MATTERPORT_DATA_DIR = <path to unzipped dataset>
+export MATTERPORT_DATA_DIR=<path to unzipped dataset>
 docker build -t mattersim:9.2-devel-ubuntu18.04 .
 sudo nvidia-docker run --runtime=nvidia -it --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data --volume `pwd`:/root/mount/Matterport3DSimulator mattersim:9.2-devel-ubuntu18.04
 
@@ -30,12 +30,18 @@ cd ../
 exit
 ```
 
-2. Download data from [Dropbox](https://www.dropbox.com/sh/u3lhng7t2gq36td/AABAIdFnJxhhCg2ItpAhMtUBa?dl=0). Put the data in `REVERIE-Challenge22/VLN-DUET/datasets' directory. We **only use 'R2R/connectivity'**.
+2. Download data from [Dropbox](https://www.dropbox.com/sh/u3lhng7t2gq36td/AABAIdFnJxhhCg2ItpAhMtUBa?dl=0).
+```
+cd ../VLN-DUET
+mkdir datasets
+mv <data in Dropbox> ./datasets
+```
+You have to download all of the data and put them to avoid errors, however, only 'R2R/connectivity' will be used.
 
 3. Download annotation data and preprocessed feature from [Google Drive](https://drive.google.com/drive/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t?usp=sharing). We preprocessed [v2 data](https://github.com/YuankaiQi/REVERIE/tree/master/tasks/REVERIE/data_v2) following [this](https://docs.google.com/document/d/1TWs_2eiFZ0QQZxfLE96IQ0zKSraT6nCiNdudiG-fgz0/edit?usp=sharing). 
 ```
-unzip annotaions.zip
-mv add_instr_encodings/* BBox_v2.json <path to REVERIE-Challenge22>/VLN-DUET/datasets/REVERIE/annotations/
+unzip annotations.zip
+mv add_instr_encodings/* BBoxes_v2.json <path to REVERIE-Challenge22>/VLN-DUET/datasets/REVERIE/annotations/
 mv obj.hdf5 <path to REVERIE-Challenge22>/VLN-DUET/datasets/REVERIE/features/
 mv view.hdf5 <path to REVERIE-Challenge22>/VLN-DUET/datasets/R2R/features/
 ```
@@ -59,7 +65,7 @@ sudo nvidia-docker run -it --shm-size=256m -e="QT_X11_NO_MITSHM=1" -e DISPLAY -v
 # in container
 export PYTHONPATH=/root/mount/Matterport3DSimulator/build:/root/mount/VLN-DUET/map_nav_src
 cd /root/mount/VLN-DUET/map_nav_src
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 bash scripts/run_reverie.sh
 ```
 
