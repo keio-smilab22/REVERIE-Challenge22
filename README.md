@@ -28,7 +28,7 @@ exit
 
 2. Download data from [Dropbox](https://www.dropbox.com/sh/u3lhng7t2gq36td/AABAIdFnJxhhCg2ItpAhMtUBa?dl=0). Put the data in `REVERIE-Challenge22/VLN-DUET/datasets' directory. We **only use 'R2R/connectivity'**.
 
-3. Download annotation data and preprocessed feature from [Google Drive](https://drive.google.com/drive/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t?usp=sharing). We preprocessed [v2 data](https://github.com/YuankaiQi/REVERIE/tree/master/tasks/REVERIE/data_v2). もしpreprocessの方法を知りたいということであれば，お知らせください．
+3. Download annotation data and preprocessed feature from [Google Drive](https://drive.google.com/drive/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t?usp=sharing). We preprocessed [v2 data](https://github.com/YuankaiQi/REVERIE/tree/master/tasks/REVERIE/data_v2). You can leave a message asking for the way to preprocess the data.
 ```
 unzip annotaions.zip
 mv add_instr_encodings/* BBox_v2.json <path to REVERIE-Challenge22>/VLN-DUET/datasets/REVERIE/annotations/
@@ -63,6 +63,6 @@ After evaluation, you can get a checkpoint file (`../datasets/REVERIE/exprs_map/
 
 You can get a checkpoint and sample predictions from [here](https://drive.google.com/drive/u/2/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t).
 
-生成したsubmit_test_dynamic.jsonを用いて、以下のレポジトリでGroundingを行います
+You can perform the object grounding task using the following repository with the generated file, e.g., submit_test_dynamic.json.
 
 https://github.com/zhaoc5/Grounding-REVERIE-Challenge
