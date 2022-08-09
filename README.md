@@ -72,7 +72,9 @@ bash scripts/run_reverie_test.sh
 
 After evaluation, you can get a checkpoint file (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen`) and predictions (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/preds/submit_test_dynamic.json`)
 
-You can get a checkpoint and sample predictions from [here](https://drive.google.com/drive/u/2/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t).
+You can get a checkpoint and sample predictions from [here](https://drive.google.com/drive/u/2/folders/1bY7gkOrIed_FbgWS-CvFXma6CahtNB29).
+(checkpoint file: best_val_unseen)
+(sample predictions: submit_test_dynamic_ch1.json)
 
 You can perform the object grounding task using the following repository with the generated file, e.g., submit_test_dynamic.json.
 
