@@ -63,7 +63,8 @@ flag="--root_dir ${DATA_ROOT}
       --wandb"
 
 # train
-CUDA_VISIBLE_DEVICES='0' python -m pdb -c c reverie/main_nav_obj.py $flag  \
+# CUDA_VISIBLE_DEVICES='0' python -m pdb -c c reverie/main_nav_obj.py $flag  \
+CUDA_VISIBLE_DEVICES='0' python reverie/main_nav_obj.py $flag  \
       --tokenizer bert \
       --bert_ckpt_file ../datasets/pretrained/model_LXRT.pth
 #       --eval_first
