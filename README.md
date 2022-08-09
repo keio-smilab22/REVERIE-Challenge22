@@ -66,7 +66,8 @@ sudo nvidia-docker run -it --shm-size=256m -e="QT_X11_NO_MITSHM=1" -e DISPLAY -v
 export PYTHONPATH=/root/mount/Matterport3DSimulator/build:/root/mount/VLN-DUET/map_nav_src
 cd /root/mount/VLN-DUET/map_nav_src
 pip install -r ../requirements.txt
-bash scripts/run_reverie.sh
+bash scripts/run_reverie_train.sh
+bash scripts/run_reverie_test.sh
 ```
 
 After evaluation, you can get a checkpoint file (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/ckpts/best_val_unseen`) and predictions (`../datasets/REVERIE/exprs_map/finetune/dagger-vitbase-seed.0/preds/submit_test_dynamic.json`)
