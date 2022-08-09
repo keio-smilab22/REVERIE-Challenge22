@@ -1,6 +1,6 @@
-# REVERIE-Challenge 2022
+# REVERIE-Challenge 2022 (Channel2)
 
-This repository is the official implementation of TeamKeio
+This repository is the official implementation of TeamKeio2
 
 ## Requirements
 The training and inference were conducted on a machine equipped with a NVIDIA A100 with 40 GB of GPU memory, and an Intel Xeon Platinum 8360Y processor. 
