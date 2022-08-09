@@ -54,7 +54,7 @@ mkdir -p datasets/pretrained
 wget https://nlp.cs.unc.edu/data/model_LXRT.pth -P datasets/pretrained
 ```
 
-## Training & Evaluation
+## Training & Test
 
 ```
 cd ../
