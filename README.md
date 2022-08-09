@@ -10,7 +10,11 @@ The training and inference were conducted on a machine equipped with a GeForce R
 1. Install [Matterport3D simulators](https://github.com/peteanderson80/Matterport3DSimulator) . Please download [Dataset](https://niessner.github.io/Matterport/). We use the latest version instead of v0.1.
 ```
 git clone --recursive https://github.com/keio-smilab22/REVERIE-Challenge22.git
-cd REVERIE-Challenge22/Matterport3DSimulator
+cd REVERIE-Challenge22
+git clone --recursive https://github.com/peteanderson80/Matterport3DSimulator.git
+cd Matterport3DSimulator
+
+mv ../Dockerfile ./
 export MATTERPORT_DATA_DIR = <path to unzipped dataset>
 docker build -t mattersim:9.2-devel-ubuntu18.04 .
 sudo nvidia-docker run --runtime=nvidia -it --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data --volume `pwd`:/root/mount/Matterport3DSimulator mattersim:9.2-devel-ubuntu18.04
