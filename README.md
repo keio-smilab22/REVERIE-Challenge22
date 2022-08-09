@@ -7,11 +7,11 @@ The training and inference were conducted on a machine equipped with a GeForce R
 
 0. Install docker, nvidia-docker2
 
-1. Install Matterport3D simulators: follow instructions [here](https://github.com/peteanderson80/Matterport3DSimulator). We use the latest version instead of v0.1.
+1. Install [Matterport3D simulators](https://github.com/peteanderson80/Matterport3DSimulator) . Please download [Dataset](https://niessner.github.io/Matterport/). We use the latest version instead of v0.1.
 ```
-git clone --recursive git@github.com:keio-smilab22/REVERIE-Challenge22.git
+git clone --recursive https://github.com/keio-smilab22/REVERIE-Challenge22.git
 cd REVERIE-Challenge22/Matterport3DSimulator
-export MATTERPORT_DATA_DIR = <path to unzipped data>
+export MATTERPORT_DATA_DIR = <path to unzipped dataset>
 docker build -t mattersim:9.2-devel-ubuntu18.04 .
 sudo nvidia-docker run --runtime=nvidia -it --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data --volume `pwd`:/root/mount/Matterport3DSimulator mattersim:9.2-devel-ubuntu18.04
 
@@ -28,7 +28,7 @@ exit
 
 2. Download data from [Dropbox](https://www.dropbox.com/sh/u3lhng7t2gq36td/AABAIdFnJxhhCg2ItpAhMtUBa?dl=0). Put the data in `REVERIE-Challenge22/VLN-DUET/datasets' directory. We **only use 'R2R/connectivity'**.
 
-3. Download annotation data and preprocessed feature from [Google Drive](https://drive.google.com/drive/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t?usp=sharing). We preprocessed [v2 data](https://github.com/YuankaiQi/REVERIE/tree/master/tasks/REVERIE/data_v2). もしpreprocessの方法を知りたいということであれば，お知らせください．
+3. Download annotation data and preprocessed feature from [Google Drive](https://drive.google.com/drive/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t?usp=sharing). We preprocessed [v2 data](https://github.com/YuankaiQi/REVERIE/tree/master/tasks/REVERIE/data_v2) following [this](https://docs.google.com/document/d/1TWs_2eiFZ0QQZxfLE96IQ0zKSraT6nCiNdudiG-fgz0/edit?usp=sharing). 
 ```
 unzip annotaions.zip
 mv add_instr_encodings/* BBox_v2.json <path to REVERIE-Challenge22>/VLN-DUET/datasets/REVERIE/annotations/
