@@ -70,4 +70,5 @@ python make_submit.py
 ```
 
 生成したsubmit_test_dynamic.jsonを用いて、以下のレポジトリでGroundingを行います
+
 https://github.com/zhaoc5/Grounding-REVERIE-Challenge
