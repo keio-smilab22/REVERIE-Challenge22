@@ -1,6 +1,6 @@
-# REVERIE-Challenge 2022 (Channel2)
+# REVERIE-Challenge 2022 (Channel1)
 
-This repository is the official implementation of TeamKeio2
+This repository is the official implementation of TeamKeio1
 
 ## Requirements
 The training and inference were conducted on a machine equipped with a NVIDIA A100 with 40 GB of GPU memory, and an Intel Xeon Platinum 8360Y processor. 
@@ -74,8 +74,6 @@ After evaluation, you can get a checkpoint file (`../datasets/REVERIE/exprs_map/
 
 You can get a checkpoint and sample predictions from [here](https://drive.google.com/drive/u/2/folders/1svrvFcpfLarWh-DO1hH4O8ZeYRRuoZ7t).
 
-For REVERIE Challenge 2022, you have to modify `submit_test_dynamic.json` before submission. 
-```
-cd VLN-DUET/map_nav_src
-python make_submit.py
-```
+You can perform the object grounding task using the following repository with the generated file, e.g., submit_test_dynamic.json.
+
+https://github.com/zhaoc5/Grounding-REVERIE-Challenge
