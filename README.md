@@ -9,7 +9,7 @@ The training and inference were conducted on a machine equipped with a NVIDIA A1
 
 1. Install [Matterport3D simulators](https://github.com/peteanderson80/Matterport3DSimulator) . Please download [Dataset](https://niessner.github.io/Matterport/). We use the latest version instead of v0.1.
 ```
-git clone --recursive -b channel2main/final https://github.com/keio-smilab22/REVERIE-Challenge22.git
+git clone --recursive -b channel1main/final https://github.com/keio-smilab22/REVERIE-Challenge22.git
 cd REVERIE-Challenge22
 git clone --recursive https://github.com/peteanderson80/Matterport3DSimulator.git
 cd Matterport3DSimulator
